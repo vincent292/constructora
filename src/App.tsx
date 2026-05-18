@@ -10,7 +10,6 @@ import {
   Menu,
   Ruler,
   ShieldCheck,
-  Sparkles,
   X,
 } from "lucide-react";
 
@@ -87,11 +86,11 @@ const projects: Project[] = [
     description:
       "El proyecto combina una fachada limpia, un lobby de acceso sobrio y circulaciones muy claras. La idea fue construir una experiencia visual que comunique valor desde la calle y confianza durante todo el recorrido.",
     heroImage:
-      "https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=2200&q=90",
     gallery: [
-      "https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=1600&q=80",
-      "https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1600&q=80",
-      "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=2200&q=90",
+      "https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=2200&q=90",
+      "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=2200&q=90",
     ],
     metrics: [
       { label: "Ubicacion", value: "Zona Norte" },
@@ -111,11 +110,11 @@ const projects: Project[] = [
     description:
       "Se planteo una casa de caracter sobrio, con grandes visuales, patios contenidos y una secuencia de espacios que acompana la vida diaria. La seleccion de materiales prioriza durabilidad, textura y una presencia atemporal.",
     heroImage:
-      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=90",
     gallery: [
-      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1600&q=80",
-      "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1600&q=80",
-      "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=90",
+      "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=2200&q=90",
+      "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=2200&q=90",
     ],
     metrics: [
       { label: "Ubicacion", value: "Cond. Los Alamos" },
@@ -135,11 +134,11 @@ const projects: Project[] = [
     description:
       "La propuesta prioriza una imagen empresarial sobria, circulaciones eficientes y una fachada que cambia con la luz del dia. La experiencia del visitante fue tratada como parte central del proyecto, desde el acceso hasta las plantas de trabajo.",
     heroImage:
-      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2200&q=90",
     gallery: [
-      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1600&q=80",
-      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
-      "https://images.unsplash.com/photo-1497366412874-3415097a27e7?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2200&q=90",
+      "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=2200&q=90",
+      "https://images.unsplash.com/photo-1497366412874-3415097a27e7?auto=format&fit=crop&w=2200&q=90",
     ],
     metrics: [
       { label: "Ubicacion", value: "Equipetrol" },
@@ -206,97 +205,198 @@ function Button({
 }
 
 function ArchitecturalHero() {
-  const beams = [
-    "left-[14%] h-[360px] rotate-[-18deg]",
-    "left-[30%] h-[430px] rotate-[-8deg]",
-    "left-[50%] h-[500px] rotate-[0deg]",
-    "left-[68%] h-[420px] rotate-[8deg]",
-    "left-[84%] h-[350px] rotate-[18deg]",
+  const heroSlides = [
+    {
+      image:
+        "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2400&q=90",
+      eyebrow: "Arquitectura residencial",
+      title: "Construyendo",
+      italic: "tus sueños",
+      description:
+        "Diseñamos y ejecutamos espacios con presencia, elegancia y una experiencia visual pensada para transmitir confianza desde el primer momento.",
+      sideTitle: "Espacios que inspiran",
+      sideText:
+        "Viviendas, edificios y proyectos comerciales con una estética sobria y contemporánea.",
+    },
+    {
+      image:
+        "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=2400&q=90",
+      eyebrow: "Diseño y construcción",
+      title: "Creamos",
+      italic: "valor real",
+      description:
+        "Cada obra se comunica con claridad: materiales, iluminación, volumen, recorrido y una identidad arquitectónica memorable.",
+      sideTitle: "Diseño con carácter",
+      sideText:
+        "Presentamos cada proyecto como una experiencia visual premium, no solo como una imagen.",
+    },
+    {
+      image:
+        "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2400&q=90",
+      eyebrow: "Obras comerciales",
+      title: "Elevamos",
+      italic: "tu proyecto",
+      description:
+        "Una landing inmersiva para constructoras que quieren mostrar obras, renders, recorridos y avances con impacto profesional.",
+      sideTitle: "Arquitectura moderna",
+      sideText:
+        "Una primera impresión fuerte, elegante y preparada para conectar con futuros clientes.",
+    },
   ];
 
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % heroSlides.length);
+    }, 6000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [heroSlides.length]);
+
+  const slide = heroSlides[activeSlide];
+
+  const nextSlide = () => {
+    setActiveSlide((current) => (current + 1) % heroSlides.length);
+  };
+
+  const prevSlide = () => {
+    setActiveSlide((current) =>
+      current === 0 ? heroSlides.length - 1 : current - 1
+    );
+  };
+
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-[2.25rem] sm:rounded-[3rem] [perspective:1200px]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(216,189,130,0.24),transparent_34%),linear-gradient(180deg,rgba(255,255,255,0.05),rgba(0,0,0,0.2))]" />
-      <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(rgba(255,255,255,.8)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.8)_1px,transparent_1px)] [background-size:42px_42px]" />
+  <div className="relative h-full min-h-screen w-full overflow-hidden">
+      <AnimatePresence mode="wait">
+        <motion.img
+          key={slide.image}
+          src={slide.image}
+          alt={slide.sideTitle}
+          initial={{ opacity: 0, scale: 1.08 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.02 }}
+          transition={{ duration: 1.1, ease: "easeOut" }}
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+      </AnimatePresence>
+
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,8,6,0.22)_0%,rgba(10,8,6,0.24)_26%,rgba(10,8,6,0.58)_66%,rgba(10,8,6,0.88)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_28%,rgba(255,255,255,0.14),transparent_24%),radial-gradient(circle_at_82%_72%,rgba(216,189,130,0.28),transparent_24%)]" />
 
       <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-        className="absolute left-1/2 top-[48%] h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#d8bd82]/15 sm:top-[46%] sm:h-[560px] sm:w-[560px]"
-      />
-
-      <motion.div
-        initial={{ opacity: 0, y: 80, rotateX: 64, rotateZ: -2 }}
-        animate={{ opacity: 1, y: 0, rotateX: 64, rotateZ: -2 }}
-        transition={{ duration: 1.1, ease: "easeOut" }}
-        className="absolute bottom-[-30px] left-1/2 h-[220px] w-[360px] -translate-x-1/2 rounded-[1.5rem] border border-[#d8bd82]/20 bg-[#d8bd82]/8 shadow-2xl shadow-black/50 sm:bottom-[-58px] sm:h-[360px] sm:w-[640px] sm:rounded-[2rem] [transform-style:preserve-3d]"
+        initial={{ opacity: 0, y: -18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.75 }}
+        className="absolute left-4 top-24 right-4 max-w-[340px] rounded-[1.5rem] border border-white/15 bg-black/20 px-4 py-3 text-sm leading-6 text-stone-100 backdrop-blur-xl sm:left-8 sm:top-30 sm:px-5 sm:py-4 md:left-12 md:top-28"
       >
-        <div className="absolute inset-0 rounded-[1.5rem] bg-[linear-gradient(90deg,rgba(216,189,130,.14)_1px,transparent_1px),linear-gradient(rgba(216,189,130,.14)_1px,transparent_1px)] [background-size:36px_36px] sm:rounded-[2rem] sm:[background-size:54px_54px]" />
+        Según la visión del proyecto, cada espacio debe sentirse sólido,
+        elegante y funcional desde la primera mirada.
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 60, rotateY: -18 }}
-        animate={{ opacity: 1, y: 0, rotateY: [-18, -10, -18] }}
-        transition={{
-          opacity: { duration: 0.9 },
-          y: { duration: 0.9 },
-          rotateY: { duration: 8, repeat: Infinity, ease: "easeInOut" },
-        }}
-        className="absolute bottom-[42px] left-1/2 h-[250px] w-[165px] -translate-x-1/2 overflow-hidden rounded-t-[1.5rem] border border-[#d8bd82]/30 bg-gradient-to-b from-white/18 via-[#d8bd82]/10 to-black/40 shadow-2xl shadow-black/60 backdrop-blur-xl sm:bottom-[92px] sm:h-[390px] sm:w-[245px] sm:rounded-t-[2.2rem] [transform-style:preserve-3d]"
+        key={`text-${activeSlide}`}
+        initial={{ opacity: 0, y: 34 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.85, ease: "easeOut" }}
+        className="absolute bottom-36 left-4 right-4 sm:bottom-32 sm:left-8 sm:right-8 md:bottom-20 md:left-12 md:max-w-5xl lg:bottom-24"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-white/14 via-transparent to-black/20" />
+        <p className="text-[11px] uppercase tracking-[0.34em] text-[#e4c98e] sm:text-sm">
+          {slide.eyebrow}
+        </p>
 
-        <div className="grid h-full grid-cols-5 gap-2 p-3 sm:gap-3 sm:p-5">
-          {Array.from({ length: 40 }).map((_, i) => (
-            <motion.span
-              key={i}
-              initial={{ opacity: 0.12 }}
-              animate={{ opacity: [0.15, 0.65, 0.22] }}
-              transition={{
-                duration: 2.8,
-                delay: i * 0.035,
-                repeat: Infinity,
-              }}
-              className="rounded-[3px] bg-[#d8bd82]/35 shadow-sm shadow-[#d8bd82]/20"
-            />
-          ))}
+        <h1 className="mt-4 text-[3.5rem] font-semibold leading-[0.88] tracking-[-0.08em] text-white sm:text-7xl md:text-8xl lg:text-[8.5rem]">
+          {slide.title}
+          <span className="block [font-family:Georgia,serif] text-[0.86em] italic font-normal tracking-[-0.06em] text-[#f7efe4]">
+            {slide.italic}
+          </span>
+        </h1>
+
+        <p className="mt-5 max-w-2xl text-sm leading-7 text-stone-200 sm:text-base sm:leading-8 md:text-lg">
+          {slide.description}
+        </p>
+
+        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <a
+            href="#proyectos"
+            className="inline-flex h-[52px] items-center justify-center rounded-full bg-[#f3eee7] px-6 text-base font-medium whitespace-nowrap text-stone-950 transition hover:bg-white sm:px-7"
+          >
+            Ver proyectos
+            <ArrowUpRight className="ml-2 h-4 w-4" />
+          </a>
+
+          <a
+            href="#contacto"
+            className="inline-flex h-[52px] items-center justify-center rounded-full border border-white/20 bg-white/[0.08] px-6 text-base font-medium whitespace-nowrap text-white backdrop-blur-xl transition hover:bg-white/[0.14] sm:px-7"
+          >
+            Contactar ahora
+          </a>
         </div>
       </motion.div>
 
-      {beams.map((beam, index) => (
-        <motion.div
-          key={beam}
-          initial={{ opacity: 0, y: 80 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.15 + index * 0.08 }}
-          className={`absolute bottom-[44px] hidden w-[22px] rounded-t-xl border border-white/8 bg-black/30 shadow-xl backdrop-blur-md sm:bottom-[86px] sm:block sm:w-[34px] ${beam}`}
-        >
-          <div className="absolute inset-x-2 bottom-4 top-4 bg-[linear-gradient(rgba(216,189,130,.28)_1px,transparent_1px)] [background-size:100%_26px]" />
-        </motion.div>
-      ))}
-
       <motion.div
-        initial={{ opacity: 0, x: 110 }}
+        key={`card-${activeSlide}`}
+        initial={{ opacity: 0, x: 34 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 1.1, delay: 0.35 }}
-        className="absolute right-[3%] top-[14%] hidden h-[170px] w-[260px] sm:right-[6%] sm:top-[18%] sm:block"
+        transition={{ duration: 0.85, delay: 0.12, ease: "easeOut" }}
+        className="absolute bottom-4 left-4 right-4 rounded-[1.6rem] border border-white/15 bg-black/30 p-4 backdrop-blur-2xl sm:left-auto sm:right-8 sm:bottom-8 sm:w-[360px] sm:rounded-[2rem] sm:p-6 md:right-12 md:bottom-20"
       >
-        <div className="absolute left-8 top-0 h-full w-3 rounded-full bg-[#d8bd82]/35" />
-        <div className="absolute left-8 top-3 h-3 w-[210px] rounded-full bg-[#d8bd82]/35" />
-        <div className="absolute right-5 top-3 h-20 w-1 bg-[#d8bd82]/25" />
-        <div className="absolute right-2 top-[82px] h-8 w-8 rounded-md border border-[#d8bd82]/25 bg-black/20" />
+        <p className="text-[11px] uppercase tracking-[0.26em] text-[#e4c98e]">
+          Vista destacada
+        </p>
+
+        <h2 className="mt-3 text-2xl font-semibold text-white">
+          {slide.sideTitle}
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-stone-300">
+          {slide.sideText}
+        </p>
+
+        <div className="mt-5 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+          <div className="flex gap-2">
+            {heroSlides.map((_, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={() => setActiveSlide(index)}
+                className={`h-2.5 rounded-full transition-all ${
+                  index === activeSlide
+                    ? "w-8 bg-[#d8bd82]"
+                    : "w-2.5 bg-white/35 hover:bg-white/60"
+                }`}
+                aria-label={`Ir al slide ${index + 1}`}
+              />
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={prevSlide}
+              className="grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/20"
+              aria-label="Slide anterior"
+            >
+              ‹
+            </button>
+
+            <button
+              type="button"
+              onClick={nextSlide}
+              className="grid h-10 w-10 place-items-center rounded-full bg-[#f3eee7] text-xl text-black transition hover:bg-white"
+              aria-label="Siguiente slide"
+            >
+              ›
+            </button>
+          </div>
+        </div>
       </motion.div>
 
-      <motion.div
-        animate={{ y: [0, -8, 0], opacity: [0.55, 0.9, 0.55] }}
-        transition={{ duration: 4.6, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute left-4 top-4 rounded-full border border-[#d8bd82]/20 bg-black/35 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-[#d8bd82] backdrop-blur-xl sm:left-[12%] sm:top-[18%] sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.25em]"
-      >
-        BIM / 3D Vision
-      </motion.div>
-
-      <div className="absolute bottom-12 left-1/2 h-8 w-[78%] -translate-x-1/2 rounded-full bg-black/50 blur-xl sm:bottom-20 sm:h-10" />
-      <div className="absolute inset-x-6 bottom-10 h-px bg-gradient-to-r from-transparent via-[#d8bd82]/50 to-transparent sm:inset-x-10 sm:bottom-16" />
+      <div className="absolute bottom-5 left-1/2 hidden -translate-x-1/2 rounded-full bg-[#f3eee7]/88 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.24em] text-stone-700 shadow-lg shadow-black/15 backdrop-blur md:inline-flex">
+        Residencial / Comercial / Supervisión
+      </div>
     </div>
   );
 }
@@ -619,9 +719,9 @@ export default function App() {
         );
 
         gsap.to(".hero-shell", {
-          rotateX: 2,
-          rotateY: -3,
-          scale: 0.985,
+          rotateX: 1.4,
+          rotateY: -1.6,
+          scale: 0.992,
           ease: "none",
           scrollTrigger: {
             trigger: "#inicio",
@@ -692,24 +792,10 @@ export default function App() {
         <div className="absolute left-1/2 top-[14%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-[#d8bd82]/10 blur-[140px]" />
       </div>
 
-      <motion.header
-        animate={
-          isHeaderCompact
-            ? {
-                backgroundColor: "rgba(13, 12, 10, 0.78)",
-                borderColor: "rgba(255, 255, 255, 0.08)",
-              }
-            : {
-                backgroundColor: "rgba(13, 12, 10, 0)",
-                borderColor: "rgba(255, 255, 255, 0)",
-              }
-        }
-        transition={{ duration: 0.35, ease: "easeOut" }}
-        className="fixed left-0 right-0 top-0 z-50 border-b backdrop-blur-2xl"
-      >
+      <motion.header className="pointer-events-none fixed left-0 right-0 top-0 z-50">
         <nav
-          className={`mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 transition-all duration-500 sm:px-5 md:px-8 ${
-            isHeaderCompact ? "py-3" : "py-4 sm:py-5"
+          className={`pointer-events-auto mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 transition-all duration-500 sm:px-5 md:px-8 ${
+            isHeaderCompact ? "pt-3 sm:pt-4" : "pt-4 sm:pt-5"
           }`}
         >
           <a
@@ -722,82 +808,125 @@ export default function App() {
                   }
                 : undefined
             }
-            className="flex min-w-0 items-center gap-3"
+            className="relative z-10 flex min-w-0 items-center gap-3"
           >
-            <span className="grid h-10 w-10 place-items-center rounded-2xl border border-[#c8a96b]/35 bg-white/5 shadow-lg shadow-black/20">
-              <Building2 className="h-5 w-5 text-[#d8bd82]" />
-            </span>
-
             <span className="min-w-0 leading-tight">
-              <span className="block truncate text-xs font-semibold tracking-[0.26em] text-stone-200 sm:text-sm sm:tracking-[0.32em]">
-                NOVA
+              <span className="block truncate text-sm font-semibold tracking-[0.2em] text-white sm:text-base sm:tracking-[0.24em]">
+                DNOI.INC
               </span>
-              <span className="block truncate text-[10px] uppercase tracking-[0.18em] text-stone-500 sm:text-xs sm:tracking-[0.24em]">
+              <span className="block truncate text-[10px] uppercase tracking-[0.18em] text-white/60 sm:text-xs sm:tracking-[0.24em]">
                 Constructora
               </span>
             </span>
           </a>
 
           {isProjectViewOpen ? (
-            <div className="hidden items-center gap-8 text-sm text-stone-300 md:flex">
+            <div
+              className={`absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 rounded-b-[2.3rem] rounded-t-[1.35rem] border px-9 pb-4 pt-3 text-sm font-medium transition-all duration-500 md:flex ${
+                isHeaderCompact
+                  ? "border-white/14 bg-white/[0.08] text-stone-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_18px_65px_rgba(0,0,0,0.2)] backdrop-blur-[26px]"
+                  : "border-[#f3eee7] bg-[#f3eee7] text-stone-900 shadow-[0_22px_70px_rgba(0,0,0,0.2)]"
+              }`}
+            >
+              <div
+                className={`absolute inset-x-8 top-2 h-px ${
+                  isHeaderCompact ? "bg-white/25" : "bg-stone-300/80"
+                }`}
+              />
               <button
                 type="button"
                 onClick={handleCloseProjectView}
-                className="transition hover:text-[#d8bd82]"
+                className="transition hover:text-[#9a6a42]"
               >
                 Volver
               </button>
               <a
-                className="transition hover:text-[#d8bd82]"
+                className="transition hover:text-[#9a6a42]"
                 href="#detalle-datos"
               >
                 Informacion
               </a>
               <a
-                className="transition hover:text-[#d8bd82]"
+                className="transition hover:text-[#9a6a42]"
                 href="#detalle-galeria"
               >
                 Galeria
               </a>
-              <a className="transition hover:text-[#d8bd82]" href="#contacto">
+              <a className="transition hover:text-[#9a6a42]" href="#contacto">
                 Contacto
               </a>
             </div>
           ) : (
-            <div className="hidden items-center gap-8 text-sm text-stone-300 md:flex">
-              <a className="transition hover:text-[#d8bd82]" href="#servicios">
-                Servicios
-              </a>
-              <a className="transition hover:text-[#d8bd82]" href="#proyectos">
-                Proyectos
-              </a>
-              <a className="transition hover:text-[#d8bd82]" href="#proceso">
-                Proceso
-              </a>
-              <a className="transition hover:text-[#d8bd82]" href="#contacto">
-                Contacto
-              </a>
-            </div>
+           <div className="absolute left-1/2 top-0 hidden h-[76px] w-[560px] -translate-x-1/2 md:block">
+  <svg
+    viewBox="0 0 560 76"
+    preserveAspectRatio="none"
+    className={`absolute inset-0 h-full w-full drop-shadow-[0_18px_40px_rgba(0,0,0,0.16)] transition-all duration-500 ${
+      isHeaderCompact ? "opacity-85" : "opacity-100"
+    }`}
+  >
+    <path
+      d="M0 0H560C534 0 523 44 480 48H80C37 44 26 0 0 0Z"
+      className={`transition-all duration-500 ${
+        isHeaderCompact ? "fill-white/15" : "fill-[#f3eee7]"
+      }`}
+    />
+  </svg>
+
+  <div
+    className={`relative z-10 flex h-[54px] items-center justify-center gap-10 text-sm font-medium transition-all duration-500 ${
+      isHeaderCompact ? "text-white backdrop-blur-xl" : "text-stone-900"
+    }`}
+  >
+    <a className="transition hover:text-[#9a6a42]" href="#servicios">
+      Servicios
+    </a>
+    <a className="transition hover:text-[#9a6a42]" href="#proyectos">
+      Proyectos
+    </a>
+    <a className="transition hover:text-[#9a6a42]" href="#proceso">
+      Proceso
+    </a>
+    <a className="transition hover:text-[#9a6a42]" href="#contacto">
+      Contacto
+    </a>
+  </div>
+</div>
           )}
 
           {isProjectViewOpen ? (
-            <Button
-              variant="outline"
-              className="hidden md:inline-flex"
+            <button
+              type="button"
               onClick={handleCloseProjectView}
+              className={`relative z-10 hidden h-[52px] items-center justify-center rounded-full px-6 text-base font-medium transition md:inline-flex ${
+                isHeaderCompact
+                  ? "border border-white/18 bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-[24px] hover:bg-white/[0.14]"
+                  : "bg-white/10 text-white backdrop-blur-2xl hover:bg-white/[0.16]"
+              }`}
             >
               Volver a la landing
-            </Button>
+            </button>
           ) : (
-            <Button className="hidden md:inline-flex">
+            <a
+              href="#contacto"
+              className={`relative z-10 hidden h-[52px] items-center justify-center rounded-full px-6 text-base font-medium transition md:inline-flex ${
+                isHeaderCompact
+                  ? "border border-white/18 bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-[24px] hover:bg-white/[0.14]"
+                  : "border border-white/35 bg-white/10 text-white backdrop-blur-2xl hover:bg-white/[0.16]"
+              }`}
+            >
               Cotizar obra
               <ArrowUpRight className="ml-2 h-4 w-4" />
-            </Button>
+            </a>
           )}
 
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/10 md:hidden"
+            className={`relative z-10 grid h-11 w-11 shrink-0 place-items-center rounded-full border transition md:hidden ${
+              isHeaderCompact
+                ? "border-white/15 bg-white/[0.08] backdrop-blur-xl"
+                : "border-white/20 bg-black/20 backdrop-blur-xl"
+            }`}
             type="button"
           >
             {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -805,7 +934,7 @@ export default function App() {
         </nav>
 
         {menuOpen && (
-          <div className="border-t border-white/10 bg-[#0d0c0a]/95 px-4 py-4 sm:px-5 md:hidden">
+          <div className="pointer-events-auto mx-4 mt-3 rounded-[1.8rem] border border-white/10 bg-[#120f0d]/88 px-5 py-5 shadow-2xl shadow-black/35 backdrop-blur-2xl sm:mx-5 md:hidden">
             <div className="grid gap-4 text-sm text-stone-300">
               {isProjectViewOpen ? (
                 <>
@@ -893,114 +1022,18 @@ export default function App() {
               exit={{ opacity: 0, y: -18 }}
               transition={{ duration: 0.35, ease: "easeOut" }}
             >
-        <section
-          id="inicio"
-          className="relative min-h-screen px-5 pt-28 sm:pt-32 md:px-8 md:pt-40"
-        >
+      <section id="inicio" className="relative min-h-screen">
           <motion.div
             style={{ y: heroY, opacity }}
-            className="mx-auto grid max-w-7xl items-center gap-8 sm:gap-10 lg:grid-cols-[1.05fr_.95fr]"
+            className="mx-auto w-full"
           >
-            <div>
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.75 }}
-                className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#c8a96b]/25 bg-[#c8a96b]/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-[#e4c98e] sm:px-4 sm:py-2 sm:text-xs sm:tracking-[0.28em]"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Ingenieria, diseno y precision
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.85, delay: 0.1 }}
-                className="max-w-4xl text-4xl font-semibold tracking-[-0.07em] text-stone-100 sm:text-5xl md:text-7xl lg:text-8xl"
-              >
-                Construimos espacios con presencia, orden y caracter.
-              </motion.h1>
-
-              <motion.p
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.85, delay: 0.2 }}
-                className="mt-6 max-w-2xl text-[15px] leading-7 text-stone-400 sm:mt-7 sm:text-base sm:leading-8 md:text-lg"
-              >
-                Una landing para una constructora que quiere verse solida,
-                elegante y clara. Menos ruido visual, mas protagonismo para las
-                obras, el proceso y la confianza.
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.85, delay: 0.3 }}
-                className="mt-8 flex flex-col gap-3 sm:mt-9 sm:flex-row sm:gap-4"
-              >
-                <Button className="w-full sm:w-auto">
-                  Ver proyectos
-                  <ArrowUpRight className="ml-2 h-4 w-4" />
-                </Button>
-
-                <Button variant="outline" className="w-full sm:w-auto">
-                  Solicitar cotizacion
-                </Button>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 1, delay: 0.45 }}
-                className="mt-10 grid max-w-xl grid-cols-3 gap-3 border-t border-white/10 pt-6 sm:mt-12 sm:gap-4 sm:pt-8"
-              >
-                <div>
-                  <p className="text-2xl font-semibold text-[#d8bd82] sm:text-3xl">12+</p>
-                  <p className="mt-1 text-xs uppercase tracking-widest text-stone-500">
-                    Anos
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-2xl font-semibold text-[#d8bd82] sm:text-3xl">80+</p>
-                  <p className="mt-1 text-xs uppercase tracking-widest text-stone-500">
-                    Obras
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-2xl font-semibold text-[#d8bd82] sm:text-3xl">360</p>
-                  <p className="mt-1 text-xs uppercase tracking-widest text-stone-500">
-                    Gestion
-                  </p>
-                </div>
-              </motion.div>
-            </div>
-
             <motion.div
               initial={{ opacity: 0, scale: 0.92 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1, delay: 0.2 }}
-              className="hero-shell relative h-[340px] overflow-hidden rounded-[2.2rem] border border-white/10 bg-white/[0.035] shadow-2xl shadow-black/50 sm:h-[470px] sm:rounded-[3rem] md:h-[620px] [transform-style:preserve-3d]"
+             className="hero-shell relative min-h-screen overflow-hidden bg-[#17120f] [transform-style:preserve-3d]"
             >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(216,189,130,0.2),transparent_35%)]" />
-
               <ArchitecturalHero />
-
-              <div className="absolute bottom-4 left-4 right-4 rounded-[1.4rem] border border-white/10 bg-black/30 p-4 backdrop-blur-2xl sm:bottom-5 sm:left-5 sm:right-5 sm:rounded-[2rem] sm:p-5">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-[#d8bd82] sm:text-sm sm:tracking-[0.25em]">
-                      Proyecto destacado
-                    </p>
-                    <p className="mt-2 text-xl font-semibold sm:text-2xl">Torre Mirador</p>
-                  </div>
-
-                  <div className="grid h-10 w-10 place-items-center rounded-full bg-white/10 sm:h-12 sm:w-12">
-                    <ArrowUpRight className="h-5 w-5" />
-                  </div>
-                </div>
-              </div>
             </motion.div>
           </motion.div>
         </section>
@@ -1268,3 +1301,4 @@ export default function App() {
     </div>
   );
 }
+
