@@ -5,7 +5,6 @@ import {
   ArrowUpRight,
   Building2,
   ClipboardList,
-  Hammer,
   Layers3,
   MapPin,
   Menu,
@@ -61,11 +60,25 @@ type RouteState =
   | { kind: "building"; slug: string };
 
 type LeadFormState = {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   email: string;
+  city: string;
   message: string;
 };
+
+const boliviaCities = [
+  "La Paz",
+  "Santa Cruz",
+  "Cochabamba",
+  "Sucre",
+  "Oruro",
+  "Potosi",
+  "Tarija",
+  "Beni",
+  "Pando",
+] as const;
 
 const processSteps = [
   ["01", "Diagnostico", "Levantamos requerimientos, alcance y objetivos comerciales del proyecto."],
@@ -371,6 +384,180 @@ function TeamCard({ member }: { member: TeamMember }) {
   );
 }
 
+function QuoteFloatingButton({
+  onClick,
+}: {
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="fixed bottom-5 right-5 z-[60] inline-flex h-14 items-center justify-center rounded-full bg-[#FFDC63] px-5 text-sm font-semibold text-black shadow-2xl shadow-black/30 transition hover:scale-[1.02] sm:bottom-7 sm:right-7 sm:px-6 sm:text-base"
+    >
+      Pedir cotizacion
+      <ArrowUpRight className="ml-2 h-4 w-4" />
+    </button>
+  );
+}
+
+function QuoteModal({
+  open,
+  onClose,
+  form,
+  onChange,
+  onSubmit,
+  loading,
+  success,
+  successMessage,
+  contextLabel,
+}: {
+  open: boolean;
+  onClose: () => void;
+  form: LeadFormState;
+  onChange: (field: keyof LeadFormState, value: string) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  loading: boolean;
+  success: boolean;
+  successMessage: string;
+  contextLabel: string;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-6"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 28, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.98 }}
+            transition={{ duration: 0.28, ease: "easeOut" }}
+            className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#11100d] text-stone-100 shadow-2xl shadow-black/35"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
+              <BrandLockup />
+              <button
+                type="button"
+                onClick={onClose}
+                className="grid h-11 w-11 place-items-center rounded-full border border-white/15 bg-white/[0.06]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {success ? (
+              <div className="px-6 py-12 text-center sm:px-10 sm:py-16">
+                <div className="mx-auto grid h-24 w-24 place-items-center overflow-hidden rounded-full border border-[#FFDC63]/20 bg-white/[0.04] p-4">
+                  <img
+                    src="/logo/logo.svg"
+                    alt="Logo Mondoza"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+                <h3 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white">
+                  Gracias por contactar con Construcciones Mondoza
+                </h3>
+                <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-stone-300">
+                  {successMessage || "Nos pondremos en contacto lo mas antes posible para ayudarte con tu proyecto."}
+                </p>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="mt-8 inline-flex h-[52px] items-center justify-center rounded-full bg-[#FFDC63] px-6 text-base font-medium text-black"
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-8 px-5 py-6 sm:px-6 sm:py-8 lg:grid-cols-[0.9fr_1.1fr]">
+                <div>
+                  <StatusPill tone="brand">{contextLabel}</StatusPill>
+                  <h3 className="mt-5 text-3xl font-semibold tracking-[-0.04em] text-white">
+                    Solicita una cotizacion premium
+                  </h3>
+                  <p className="mt-4 leading-7 text-stone-300">
+                    Comparte tus datos, ciudad y lo que necesitas. El lead queda listo para seguimiento desde tu CMS.
+                  </p>
+                </div>
+
+                <form onSubmit={onSubmit} className="grid gap-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      value={form.firstName}
+                      onChange={(event) => onChange("firstName", event.target.value)}
+                      placeholder="Nombre"
+                      className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
+                      required
+                    />
+                    <input
+                      value={form.lastName}
+                      onChange={(event) => onChange("lastName", event.target.value)}
+                      placeholder="Apellido"
+                      className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <input
+                      value={form.phone}
+                      onChange={(event) => onChange("phone", event.target.value)}
+                      placeholder="Numero o WhatsApp"
+                      className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
+                      required
+                    />
+                    <select
+                      value={form.city}
+                      onChange={(event) => onChange("city", event.target.value)}
+                      className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none focus:border-[#FFDC63]/35"
+                      required
+                    >
+                      <option value="">Selecciona tu ciudad</option>
+                      {boliviaCities.map((city) => (
+                        <option key={city} value={city} className="text-black">
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <input
+                    value={form.email}
+                    onChange={(event) => onChange("email", event.target.value)}
+                    placeholder="Correo electronico"
+                    type="email"
+                    className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
+                    required
+                  />
+
+                  <textarea
+                    value={form.message}
+                    onChange={(event) => onChange("message", event.target.value)}
+                    placeholder="Cuéntanos sobre tu obra, edificio, unidad o requerimiento"
+                    className="min-h-36 rounded-[1.5rem] border border-white/10 bg-white/[0.06] px-4 py-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
+                    required
+                  />
+
+                  <button
+                    type="submit"
+                    className="inline-flex h-[52px] items-center justify-center rounded-full bg-[#FFDC63] px-6 text-base font-medium text-black"
+                  >
+                    {loading ? "Enviando..." : "Enviar solicitud"}
+                  </button>
+                </form>
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 function MobileMenu({
   open,
   onClose,
@@ -393,7 +580,7 @@ function MobileMenu({
           initial={{ x: "-100%" }}
           animate={{ x: 0 }}
           exit={{ x: "-100%" }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
           className="fixed inset-0 z-[70] overflow-hidden bg-[#0d0c0a] text-stone-100 md:hidden"
         >
           <div className="flex h-full flex-col px-6 pb-8 pt-6">
@@ -416,8 +603,7 @@ function MobileMenu({
                     href={link.href}
                     initial={{ opacity: 0, x: -24 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -24 }}
-                    transition={{ duration: 0.35, delay: index * 0.08 }}
+                    transition={{ duration: 0.24, delay: index * 0.05 }}
                     onClick={(event) => {
                       link.onClick?.();
                       if (link.href.startsWith("#")) {
@@ -440,8 +626,7 @@ function MobileMenu({
                 href={actionHref}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.35, delay: 0.18 }}
+                transition={{ duration: 0.24, delay: 0.12 }}
                 onClick={(event) => {
                   if (actionOnClick) {
                     event.preventDefault();
@@ -801,11 +986,14 @@ export default function App() {
     unitLabel?: string;
   }>({ interestType: "general" });
   const [leadForm, setLeadForm] = useState<LeadFormState>({
-    fullName: "",
+    firstName: "",
+    lastName: "",
     phone: "",
     email: "",
+    city: "",
     message: "",
   });
+  const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [leadState, setLeadState] = useState<{
     loading: boolean;
     message: string;
@@ -954,6 +1142,19 @@ export default function App() {
   }, [menuOpen]);
 
   useEffect(() => {
+    if (!quoteModalOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [quoteModalOpen]);
+
+  useEffect(() => {
     if (loadingContent || routeReadyRef.current) {
       return;
     }
@@ -1052,10 +1253,8 @@ export default function App() {
     unitLabel?: string
   ) => {
     setLeadContext({ interestType, referenceSlug, unitLabel });
-    document.getElementById("contacto")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    setLeadState({ loading: false, message: "", error: false });
+    setQuoteModalOpen(true);
   };
 
   const openWork = (item: WorkProject) => {
@@ -1130,27 +1329,29 @@ export default function App() {
 
     try {
       await createLead({
-        fullName: leadForm.fullName,
+        fullName: `${leadForm.firstName} ${leadForm.lastName}`.trim(),
         phone: leadForm.phone,
         email: leadForm.email,
-        message: leadForm.message,
+        message: `Ciudad: ${leadForm.city}\n${leadForm.message}`,
         interestType: leadContext.interestType,
         referenceSlug: leadContext.referenceSlug,
         unitLabel: leadContext.unitLabel,
       });
 
       setLeadForm({
-        fullName: "",
+        firstName: "",
+        lastName: "",
         phone: "",
         email: "",
+        city: "",
         message: "",
       });
       setLeadContext({ interestType: "general" });
       setLeadState({
         loading: false,
         message: isSupabaseConfigured
-          ? "Solicitud enviada. Ya puede verse en Supabase."
-          : "Solicitud simulada en modo demo. Agrega tus credenciales para guardar leads reales.",
+          ? "Nos pondremos en contacto lo mas antes posible con una propuesta adecuada para tu proyecto."
+          : "Solicitud simulada en modo demo. Cuando conectes Supabase local, tambien quedara guardada como lead real.",
         error: false,
       });
     } catch (error) {
@@ -1289,6 +1490,22 @@ export default function App() {
         actionOnClick={detail ? closeDetail : undefined}
       />
 
+      <QuoteModal
+        open={quoteModalOpen}
+        onClose={() => setQuoteModalOpen(false)}
+        form={leadForm}
+        onChange={(field, value) =>
+          setLeadForm((current) => ({ ...current, [field]: value }))
+        }
+        onSubmit={submitLead}
+        loading={leadState.loading}
+        success={Boolean(leadState.message) && !leadState.error}
+        successMessage={leadState.message}
+        contextLabel={`Solicitud: ${leadContext.interestType}`}
+      />
+
+      <QuoteFloatingButton onClick={() => openLeadContext("general")} />
+
       <main className="relative z-10">
         <AnimatePresence mode="wait">
           {detail ? (
@@ -1320,31 +1537,6 @@ export default function App() {
                 />
               </section>
 
-              <section id="servicios" className="gsap-zone px-5 py-20 sm:py-24 md:px-8 md:py-28">
-                <div className="mx-auto max-w-7xl">
-                  <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-                    <SectionHeading
-                      eyebrow="Servicios"
-                      title="Todo lo que una constructora necesita mostrar y controlar."
-                      description="La base ya esta pensada para leer informacion desde Supabase y luego crecer a un panel administrativo completo."
-                    />
-                    <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-stone-300 backdrop-blur-xl">
-                      {loadingContent
-                        ? "Cargando contenido..."
-                        : isSupabaseConfigured
-                        ? "Conectado a Supabase"
-                        : "Modo demo con contenido local"}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {content.services.map((service) => (
-                      <ServiceCard key={service.id} service={service} />
-                    ))}
-                  </div>
-                </div>
-              </section>
-
               <section id="obras" className="gsap-zone px-5 py-20 sm:py-24 md:px-8 md:py-28">
                 <div className="mx-auto max-w-7xl">
                   <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -1373,6 +1565,31 @@ export default function App() {
                         badge="Obra"
                         onClick={() => openWork(item)}
                       />
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <section id="servicios" className="gsap-zone px-5 py-20 sm:py-24 md:px-8 md:py-28">
+                <div className="mx-auto max-w-7xl">
+                  <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                    <SectionHeading
+                      eyebrow="Servicios"
+                      title="Todo lo que una constructora necesita mostrar y controlar."
+                      description="La base ya esta pensada para leer informacion desde Supabase y luego crecer a un panel administrativo completo."
+                    />
+                    <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-stone-300 backdrop-blur-xl">
+                      {loadingContent
+                        ? "Cargando contenido..."
+                        : isSupabaseConfigured
+                        ? "Conectado a Supabase"
+                        : "Modo demo con contenido local"}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {content.services.map((service) => (
+                      <ServiceCard key={service.id} service={service} />
                     ))}
                   </div>
                 </div>
@@ -1495,87 +1712,31 @@ export default function App() {
                     </div>
 
                     <div className="rounded-[1.8rem] bg-black/10 p-5 backdrop-blur-xl sm:p-6">
-                      <div className="mb-6 rounded-[1.4rem] bg-white/40 p-4 text-sm text-black/75">
-                        <p className="font-semibold">Contexto actual</p>
-                        <p className="mt-2">
-                          Tipo: {leadContext.interestType}
-                          {leadContext.referenceSlug ? ` / Referencia: ${leadContext.referenceSlug}` : ""}
-                          {leadContext.unitLabel ? ` / Unidad: ${leadContext.unitLabel}` : ""}
-                        </p>
+                      <p className="text-sm uppercase tracking-[0.22em] text-black/45">
+                        Solicitudes premium
+                      </p>
+                      <h3 className="mt-4 text-3xl font-semibold tracking-[-0.04em]">
+                        Usa el boton flotante para cotizar
+                      </h3>
+                      <p className="mt-4 leading-7 text-black/70">
+                        El formulario ahora abre en una experiencia premium con nombre, apellido, ciudad de Bolivia, numero, mensaje y confirmacion visual con tu marca.
+                      </p>
+
+                      <div className="mt-6 flex flex-wrap gap-3">
+                        <StatusPill tone="light">Nombre y apellido</StatusPill>
+                        <StatusPill tone="light">Ciudad de Bolivia</StatusPill>
+                        <StatusPill tone="light">Numero de contacto</StatusPill>
+                        <StatusPill tone="light">Mensaje detallado</StatusPill>
                       </div>
 
-                      <form onSubmit={submitLead} className="grid gap-4">
-                        <input
-                          value={leadForm.fullName}
-                          onChange={(event) =>
-                            setLeadForm((current) => ({
-                              ...current,
-                              fullName: event.target.value,
-                            }))
-                          }
-                          placeholder="Nombre completo"
-                          className="h-12 rounded-full border border-black/10 bg-white/70 px-4 text-black outline-none transition placeholder:text-black/45 focus:border-black/30"
-                          required
-                        />
-                        <input
-                          value={leadForm.phone}
-                          onChange={(event) =>
-                            setLeadForm((current) => ({
-                              ...current,
-                              phone: event.target.value,
-                            }))
-                          }
-                          placeholder="Telefono o WhatsApp"
-                          className="h-12 rounded-full border border-black/10 bg-white/70 px-4 text-black outline-none transition placeholder:text-black/45 focus:border-black/30"
-                          required
-                        />
-                        <input
-                          value={leadForm.email}
-                          onChange={(event) =>
-                            setLeadForm((current) => ({
-                              ...current,
-                              email: event.target.value,
-                            }))
-                          }
-                          placeholder="Correo electronico"
-                          type="email"
-                          className="h-12 rounded-full border border-black/10 bg-white/70 px-4 text-black outline-none transition placeholder:text-black/45 focus:border-black/30"
-                          required
-                        />
-                        <textarea
-                          value={leadForm.message}
-                          onChange={(event) =>
-                            setLeadForm((current) => ({
-                              ...current,
-                              message: event.target.value,
-                            }))
-                          }
-                          placeholder="Cuéntanos lo que necesitas"
-                          className="min-h-36 rounded-[1.5rem] border border-black/10 bg-white/70 px-4 py-4 text-black outline-none transition placeholder:text-black/45 focus:border-black/30"
-                          required
-                        />
-
-                        <Button
-                          type="submit"
-                          variant="dark"
-                          className="w-full"
-                        >
-                          {leadState.loading ? "Enviando..." : "Enviar solicitud"}
-                          <Hammer className="ml-2 h-4 w-4" />
-                        </Button>
-
-                        {leadState.message && (
-                          <div
-                            className={`rounded-[1.4rem] px-4 py-3 text-sm ${
-                              leadState.error
-                                ? "bg-red-500/15 text-red-900"
-                                : "bg-white/45 text-black/80"
-                            }`}
-                          >
-                            {leadState.message}
-                          </div>
-                        )}
-                      </form>
+                      <button
+                        type="button"
+                        onClick={() => openLeadContext("general")}
+                        className="mt-8 inline-flex h-[52px] items-center justify-center rounded-full bg-black px-6 text-base font-medium text-white"
+                      >
+                        Abrir formulario premium
+                        <ArrowUpRight className="ml-2 h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 </div>
