@@ -146,6 +146,22 @@ function buildRoute(kind: "work" | "building", slug: string) {
   return kind === "work" ? `/obras/${slug}` : `/edificios/${slug}`;
 }
 
+function detectAppleMobileSafari() {
+  if (typeof navigator === "undefined") {
+    return false;
+  }
+
+  const userAgent = navigator.userAgent;
+  const isAppleMobileDevice =
+    /iPhone|iPad|iPod/i.test(userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isSafariBrowser =
+    /Safari/i.test(userAgent) &&
+    !/CriOS|FxiOS|EdgiOS|OPiOS|Chrome|Android/i.test(userAgent);
+
+  return isAppleMobileDevice && isSafariBrowser;
+}
+
 function StatusPill({
   children,
   tone = "dark",
@@ -169,29 +185,17 @@ function StatusPill({
 }
 
 function BrandLockup({
-  textColor = "text-white",
-  subColor = "text-white/60",
+  className = "",
 }: {
-  textColor?: string;
-  subColor?: string;
+  className?: string;
 }) {
   return (
-    <span className="flex min-w-0 items-center gap-3">
-      <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-white/[0.06] p-1.5">
-        <img
-          src="/logo/logo.svg"
-          alt="Logo Mondoza"
-          className="h-full w-full object-contain"
-        />
-      </span>
-      <span className="min-w-0">
-        <span className={`block truncate text-sm font-semibold tracking-[0.18em] sm:text-base ${textColor}`}>
-          MONDOZA
-        </span>
-        <span className={`block truncate text-[10px] uppercase tracking-[0.18em] sm:text-xs ${subColor}`}>
-          Construcciones civiles
-        </span>
-      </span>
+    <span className={`flex min-w-0 items-center ${className}`}>
+      <img
+        src="/logo/logo.png"
+        alt="Logo Mondoza"
+        className="h-auto w-[50px] object-contain sm:w-[70px]"
+      />
     </span>
   );
 }
@@ -220,6 +224,7 @@ function HeroSection({
       <img
         src={heroImage}
         alt={companyName}
+        fetchPriority="high"
         className="absolute inset-0 h-full w-full object-cover object-center"
       />
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,7,5,0.14)_0%,rgba(9,7,5,0.3)_28%,rgba(9,7,5,0.64)_68%,rgba(9,7,5,0.9)_100%)]" />
@@ -330,6 +335,8 @@ function CatalogCard({
       <img
         src={image}
         alt={title}
+        loading="lazy"
+        decoding="async"
         className="h-full w-full object-cover opacity-80 transition duration-700 group-hover:scale-105 group-hover:opacity-100"
       />
       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
@@ -372,7 +379,13 @@ function ServiceCard({ service }: { service: ServiceItem }) {
 function TeamCard({ member }: { member: TeamMember }) {
   return (
     <div className="gsap-reveal overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] shadow-xl shadow-black/20 backdrop-blur-xl">
-      <img src={member.image} alt={member.name} className="h-72 w-full object-cover" />
+      <img
+        src={member.image}
+        alt={member.name}
+        loading="lazy"
+        decoding="async"
+        className="h-72 w-full object-cover"
+      />
       <div className="p-6">
         <p className="text-[11px] uppercase tracking-[0.24em] text-[#FFDC63]">
           {member.role}
@@ -386,14 +399,18 @@ function TeamCard({ member }: { member: TeamMember }) {
 
 function QuoteFloatingButton({
   onClick,
+  hidden = false,
 }: {
   onClick: () => void;
+  hidden?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="fixed bottom-5 right-5 z-[60] inline-flex h-14 items-center justify-center rounded-full bg-[#FFDC63] px-5 text-sm font-semibold text-black shadow-2xl shadow-black/30 transition hover:scale-[1.02] sm:bottom-7 sm:right-7 sm:px-6 sm:text-base"
+      className={`fixed bottom-5 right-5 z-[60] inline-flex h-14 items-center justify-center rounded-full bg-[#FFDC63] px-5 text-sm font-semibold text-black shadow-2xl shadow-black/30 transition hover:scale-[1.02] sm:bottom-7 sm:right-7 sm:px-6 sm:text-base ${
+        hidden ? "pointer-events-none opacity-0" : "opacity-100"
+      }`}
     >
       Pedir cotizacion
       <ArrowUpRight className="ml-2 h-4 w-4" />
@@ -411,6 +428,7 @@ function QuoteModal({
   success,
   successMessage,
   contextLabel,
+  isAppleMobileSafari,
 }: {
   open: boolean;
   onClose: () => void;
@@ -421,6 +439,7 @@ function QuoteModal({
   success: boolean;
   successMessage: string;
   contextLabel: string;
+  isAppleMobileSafari: boolean;
 }) {
   return (
     <AnimatePresence>
@@ -429,17 +448,22 @@ function QuoteModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-6"
+          className={`fixed inset-0 z-[80] flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6 ${
+            isAppleMobileSafari ? "" : "backdrop-blur-sm"
+          }`}
         >
           <motion.div
             initial={{ opacity: 0, y: 28, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.98 }}
-            transition={{ duration: 0.28, ease: "easeOut" }}
+            transition={{
+              duration: isAppleMobileSafari ? 0.18 : 0.28,
+              ease: "easeOut",
+            }}
             className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#11100d] text-stone-100 shadow-2xl shadow-black/35"
           >
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
-              <BrandLockup />
+              <BrandLockup className="justify-start" />
               <button
                 type="button"
                 onClick={onClose}
@@ -451,11 +475,11 @@ function QuoteModal({
 
             {success ? (
               <div className="px-6 py-12 text-center sm:px-10 sm:py-16">
-                <div className="mx-auto grid h-24 w-24 place-items-center overflow-hidden rounded-full border border-[#FFDC63]/20 bg-white/[0.04] p-4">
+                <div className="mx-auto flex justify-center">
                   <img
-                    src="/logo/logo.svg"
+                    src="/logo/logo.png"
                     alt="Logo Mondoza"
-                    className="h-full w-full object-contain"
+                    className="h-auto w-[190px] object-contain sm:w-[236px]"
                   />
                 </div>
                 <h3 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white">
@@ -565,6 +589,7 @@ function MobileMenu({
   actionLabel,
   actionHref,
   actionOnClick,
+  isAppleMobileSafari,
 }: {
   open: boolean;
   onClose: () => void;
@@ -572,6 +597,7 @@ function MobileMenu({
   actionLabel: string;
   actionHref: string;
   actionOnClick?: () => void;
+  isAppleMobileSafari: boolean;
 }) {
   return (
     <AnimatePresence>
@@ -580,12 +606,15 @@ function MobileMenu({
           initial={{ x: "-100%" }}
           animate={{ x: 0 }}
           exit={{ x: "-100%" }}
-          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+          transition={{
+            duration: isAppleMobileSafari ? 0.16 : 0.24,
+            ease: isAppleMobileSafari ? "easeOut" : [0.22, 1, 0.36, 1],
+          }}
           className="fixed inset-0 z-[70] overflow-hidden bg-[#0d0c0a] text-stone-100 md:hidden"
         >
           <div className="flex h-full flex-col px-6 pb-8 pt-6">
             <div className="mb-10 flex items-center justify-between">
-              <BrandLockup />
+              <BrandLockup className="justify-start" />
               <button
                 type="button"
                 onClick={onClose}
@@ -603,7 +632,10 @@ function MobileMenu({
                     href={link.href}
                     initial={{ opacity: 0, x: -24 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.24, delay: index * 0.05 }}
+                    transition={{
+                      duration: isAppleMobileSafari ? 0.16 : 0.24,
+                      delay: isAppleMobileSafari ? index * 0.03 : index * 0.05,
+                    }}
                     onClick={(event) => {
                       link.onClick?.();
                       if (link.href.startsWith("#")) {
@@ -626,7 +658,10 @@ function MobileMenu({
                 href={actionHref}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.24, delay: 0.12 }}
+                transition={{
+                  duration: isAppleMobileSafari ? 0.16 : 0.24,
+                  delay: isAppleMobileSafari ? 0.08 : 0.12,
+                }}
                 onClick={(event) => {
                   if (actionOnClick) {
                     event.preventDefault();
@@ -972,6 +1007,7 @@ function DetailViewScreen({
 }
 
 export default function App() {
+  const isAppleMobileSafari = useRef(detectAppleMobileSafari()).current;
   const [content, setContent] = useState<SiteContent>(fallbackContent);
   const [detail, setDetail] = useState<DetailState>(null);
   const [activeDetailImage, setActiveDetailImage] = useState<string>(
@@ -1039,6 +1075,10 @@ export default function App() {
     document.documentElement.style.scrollBehavior = "auto";
 
     async function initEffects() {
+      if (isAppleMobileSafari) {
+        return;
+      }
+
       try {
         const LenisModule = (await import("lenis")) as {
           default: new (options: {
@@ -1118,7 +1158,7 @@ export default function App() {
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, []);
+  }, [isAppleMobileSafari]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -1387,7 +1427,7 @@ export default function App() {
             }}
             className="relative z-10 min-w-0"
           >
-            <BrandLockup />
+            <BrandLockup className="justify-start" />
           </a>
 
           <div className="absolute left-1/2 top-0 hidden h-[76px] w-[600px] -translate-x-1/2 md:block">
@@ -1468,8 +1508,12 @@ export default function App() {
             onClick={() => setMenuOpen(true)}
             className={`relative z-10 grid h-11 w-11 place-items-center rounded-full border transition md:hidden ${
               isHeaderCompact
-                ? "border-white/15 bg-white/[0.08] backdrop-blur-xl"
-                : "border-white/20 bg-black/20 backdrop-blur-xl"
+                ? isAppleMobileSafari
+                  ? "border-white/15 bg-white/[0.12]"
+                  : "border-white/15 bg-white/[0.08] backdrop-blur-xl"
+                : isAppleMobileSafari
+                  ? "border-white/20 bg-black/45"
+                  : "border-white/20 bg-black/20 backdrop-blur-xl"
             }`}
           >
             <Menu className="h-5 w-5" />
@@ -1488,6 +1532,7 @@ export default function App() {
         actionLabel={detail ? "Volver" : "Solicitar cotizacion"}
         actionHref={detail ? "#detalle-hero" : "#contacto"}
         actionOnClick={detail ? closeDetail : undefined}
+        isAppleMobileSafari={isAppleMobileSafari}
       />
 
       <QuoteModal
@@ -1502,9 +1547,13 @@ export default function App() {
         success={Boolean(leadState.message) && !leadState.error}
         successMessage={leadState.message}
         contextLabel={`Solicitud: ${leadContext.interestType}`}
+        isAppleMobileSafari={isAppleMobileSafari}
       />
 
-      <QuoteFloatingButton onClick={() => openLeadContext("general")} />
+      <QuoteFloatingButton
+        onClick={() => openLeadContext("general")}
+        hidden={menuOpen || quoteModalOpen}
+      />
 
       <main className="relative z-10">
         <AnimatePresence mode="wait">
@@ -1745,7 +1794,7 @@ export default function App() {
               <footer className="px-5 pb-10 pt-10 md:px-8">
                 <div className="mx-auto grid max-w-7xl gap-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl md:grid-cols-[1.2fr_0.8fr] md:p-8">
                   <div>
-                    <BrandLockup />
+                    <BrandLockup className="justify-start" />
                     <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-300">
                       Una base lista para crecer con logo real, rutas propias, panel
                       administrativo, mensajes internos, disponibilidad de unidades y
