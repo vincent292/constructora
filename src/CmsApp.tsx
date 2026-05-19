@@ -119,6 +119,8 @@ type UnitEditorState = {
   isAvailable: boolean;
 };
 
+type BranchEditorState = BranchOffice;
+
 type TeamEditorState = {
   id?: string;
   name: string;
@@ -741,7 +743,40 @@ function CmsHeader({
 }) {
   return (
     <div className="rounded-[2rem] border border-white/10 bg-black/55 px-5 py-5 shadow-2xl shadow-black/20 backdrop-blur-xl sm:px-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <button
+            type="button"
+            onClick={onOpenNavigation}
+            className="inline-flex h-12 items-center justify-center gap-2 self-start rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-medium text-white xl:hidden"
+          >
+            <Menu className="h-4 w-4" />
+            Navegacion
+          </button>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end">
+            <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.22em] text-stone-500">Sesion</p>
+              <p className="mt-1 font-medium text-white">{viewerName}</p>
+              <p className="mt-1 text-sm text-[#FFDC63]">{roleLabel(viewerRole)}</p>
+            </div>
+            <a
+              href="/"
+              className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-medium text-white"
+            >
+              Ver sitio
+            </a>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black"
+            >
+              <LogOut className="h-4 w-4" />
+              Salir
+            </button>
+          </div>
+        </div>
+
         <div>
           <div className="inline-flex items-center gap-2 rounded-full border border-[#FFDC63]/20 bg-[#FFDC63]/10 px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-[#FFDC63]">
             <ShieldCheck className="h-3.5 w-3.5" />
@@ -753,36 +788,6 @@ function CmsHeader({
           <p className="mt-3 max-w-3xl text-sm leading-7 text-stone-300 sm:text-base">
             {description}
           </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={onOpenNavigation}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-medium text-white xl:hidden"
-          >
-            <Menu className="h-4 w-4" />
-            Navegacion
-          </button>
-          <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] px-4 py-3">
-            <p className="text-xs uppercase tracking-[0.22em] text-stone-500">Sesion</p>
-            <p className="mt-1 font-medium text-white">{viewerName}</p>
-            <p className="mt-1 text-sm text-[#FFDC63]">{roleLabel(viewerRole)}</p>
-          </div>
-          <a
-            href="/"
-            className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-medium text-white"
-          >
-            Ver sitio
-          </a>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black"
-          >
-            <LogOut className="h-4 w-4" />
-            Salir
-          </button>
         </div>
       </div>
     </div>
@@ -1534,8 +1539,11 @@ export default function CmsApp() {
   );
   const [staffForm, setStaffForm] = useState<StaffEditorState>(toStaffEditorState());
   const [unitForm, setUnitForm] = useState<UnitEditorState>(buildEmptyUnit());
+  const [branchForm, setBranchForm] = useState<BranchEditorState>(buildEmptyBranch());
   const [editingUnitIndex, setEditingUnitIndex] = useState<number | null>(null);
+  const [editingBranchIndex, setEditingBranchIndex] = useState<number | null>(null);
   const [unitModalOpen, setUnitModalOpen] = useState(false);
+  const [branchModalOpen, setBranchModalOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [workSearch, setWorkSearch] = useState("");
   const [buildingSearch, setBuildingSearch] = useState("");
@@ -1564,7 +1572,8 @@ export default function CmsApp() {
   const assignableStaff = dashboard.staff.filter(
     (profile) => profile.role === "architect" || profile.role === "site_manager"
   );
-  const hasBlockingOverlay = mobileNavOpen || Boolean(activeModal) || unitModalOpen;
+  const hasBlockingOverlay =
+    mobileNavOpen || Boolean(activeModal) || unitModalOpen || branchModalOpen;
 
   const buildAssignedStaffLabel = (selectedIds: string[], fallback: string) => {
     const names = assignableStaff
@@ -1613,6 +1622,17 @@ export default function CmsApp() {
       setEditingUnitIndex(null);
     }
     setUnitModalOpen(true);
+  };
+
+  const openBranchEditor = (index?: number) => {
+    if (typeof index === "number") {
+      setBranchForm(settingsForm.contact.branches[index]);
+      setEditingBranchIndex(index);
+    } else {
+      setBranchForm(buildEmptyBranch());
+      setEditingBranchIndex(null);
+    }
+    setBranchModalOpen(true);
   };
 
   const refreshDashboard = async () => {
@@ -2582,15 +2602,7 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                     </div>
                     <button
                       type="button"
-                      onClick={() =>
-                        setSettingsForm((current) => ({
-                          ...current,
-                          contact: {
-                            ...current.contact,
-                            branches: [...current.contact.branches, buildEmptyBranch()],
-                          },
-                        }))
-                      }
+                      onClick={() => openBranchEditor()}
                       className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
                     >
                       <Plus className="h-4 w-4" />
@@ -2608,69 +2620,36 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                           <p className="text-sm font-medium text-stone-900">
                             Sucursal {index + 1}
                           </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setSettingsForm((current) => ({
-                                ...current,
-                                contact: {
-                                  ...current.contact,
-                                  branches: current.contact.branches.filter(
-                                    (_, branchIndex) => branchIndex !== index
-                                  ),
-                                },
-                              }))
-                            }
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openBranchEditor(index)}
+                              className="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-700"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSettingsForm((current) => ({
+                                  ...current,
+                                  contact: {
+                                    ...current.contact,
+                                    branches: current.contact.branches.filter(
+                                      (_, branchIndex) => branchIndex !== index
+                                    ),
+                                  },
+                                }))
+                              }
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <InputField
-                          label="Nombre"
-                          value={branch.name}
-                          onChange={(value) =>
-                            setSettingsForm((current) => ({
-                              ...current,
-                              contact: {
-                                ...current.contact,
-                                branches: current.contact.branches.map((item, branchIndex) =>
-                                  branchIndex === index ? { ...item, name: value } : item
-                                ),
-                              },
-                            }))
-                          }
-                        />
-                        <InputField
-                          label="Direccion"
-                          value={branch.address}
-                          onChange={(value) =>
-                            setSettingsForm((current) => ({
-                              ...current,
-                              contact: {
-                                ...current.contact,
-                                branches: current.contact.branches.map((item, branchIndex) =>
-                                  branchIndex === index ? { ...item, address: value } : item
-                                ),
-                              },
-                            }))
-                          }
-                        />
-                        <InputField
-                          label="Telefono"
-                          value={branch.phone}
-                          onChange={(value) =>
-                            setSettingsForm((current) => ({
-                              ...current,
-                              contact: {
-                                ...current.contact,
-                                branches: current.contact.branches.map((item, branchIndex) =>
-                                  branchIndex === index ? { ...item, phone: value } : item
-                                ),
-                              },
-                            }))
-                          }
-                        />
+                        <p className="text-base font-semibold text-stone-900">{branch.name}</p>
+                        <p className="text-sm leading-6 text-stone-500">{branch.address}</p>
+                        <p className="text-sm text-stone-600">{branch.phone}</p>
                       </div>
                     ))}
                   </div>
@@ -3382,6 +3361,75 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
             >
               <Save className="h-4 w-4" />
               Guardar unidad
+            </button>
+          </div>
+        </div>
+      </EditorModal>
+
+      <EditorModal
+        open={branchModalOpen}
+        title={editingBranchIndex === null ? "Nueva sucursal" : "Editar sucursal"}
+        description="Completa nombre, direccion y telefono antes de mostrar la sucursal en la landing y el footer."
+        onClose={() => setBranchModalOpen(false)}
+      >
+        <div className="grid gap-4">
+          <div className="grid gap-4">
+            <InputField
+              label="Nombre"
+              value={branchForm.name}
+              onChange={(value) => setBranchForm((current) => ({ ...current, name: value }))}
+              placeholder="Sucursal Cochabamba"
+            />
+            <InputField
+              label="Direccion"
+              value={branchForm.address}
+              onChange={(value) =>
+                setBranchForm((current) => ({ ...current, address: value }))
+              }
+              placeholder="Av. America Oeste, Cochabamba"
+            />
+            <InputField
+              label="Telefono"
+              value={branchForm.phone}
+              onChange={(value) => setBranchForm((current) => ({ ...current, phone: value }))}
+              placeholder="+591 70000000"
+            />
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[#e6d7c2] pt-4">
+            <button
+              type="button"
+              onClick={() => setBranchModalOpen(false)}
+              className="inline-flex h-11 items-center rounded-full border border-stone-200 bg-white px-4 text-sm text-stone-700"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsForm((current) => ({
+                  ...current,
+                  contact: {
+                    ...current.contact,
+                    branches:
+                      editingBranchIndex === null
+                        ? [...current.contact.branches, branchForm]
+                        : current.contact.branches.map((branch, index) =>
+                            index === editingBranchIndex ? branchForm : branch
+                          ),
+                  },
+                }));
+                setBranchModalOpen(false);
+              }}
+              disabled={
+                !branchForm.name.trim() ||
+                !branchForm.address.trim() ||
+                !branchForm.phone.trim()
+              }
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              Guardar sucursal
             </button>
           </div>
         </div>
