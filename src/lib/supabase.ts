@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabaseProjectUrl = supabaseUrl ?? "";
@@ -11,14 +13,18 @@ function looksLikeJwt(value: string) {
   return value.split(".").length === 3;
 }
 
+function looksLikePublishableKey(value: string) {
+  return value.startsWith("sb_publishable_");
+}
+
 function assertSupabasePublicConfig() {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Supabase no esta configurado.");
   }
 
-  if (!looksLikeJwt(supabaseAnonKey)) {
+  if (!looksLikeJwt(supabaseAnonKey) && !looksLikePublishableKey(supabaseAnonKey)) {
     throw new Error(
-      "La VITE_SUPABASE_ANON_KEY local no es valida. Ejecuta `npx supabase status` y copia la ANON KEY real."
+      "La clave publica de Supabase no es valida. Usa VITE_SUPABASE_PUBLISHABLE_KEY o VITE_SUPABASE_ANON_KEY."
     );
   }
 }
