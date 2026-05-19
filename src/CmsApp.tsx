@@ -8,6 +8,7 @@ import {
   LoaderCircle,
   LogOut,
   Mail,
+  Menu,
   MapPin,
   MessageSquareMore,
   Plus,
@@ -689,9 +690,15 @@ function EditorModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[2.2rem] border border-[#d8c4a8] bg-[#f8f1e6] shadow-[0_30px_90px_rgba(28,20,8,0.22)]">
-        <div className="flex items-start justify-between gap-4 border-b border-[#e6d7c2] px-5 py-5 sm:px-6">
+    <div
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/45 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[94vh] w-full overflow-hidden rounded-t-[2rem] border border-[#d8c4a8] bg-[#f8f1e6] shadow-[0_30px_90px_rgba(28,20,8,0.22)] sm:max-h-[92vh] sm:max-w-6xl sm:rounded-[2.2rem]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#e6d7c2] bg-[#f8f1e6] px-4 py-4 sm:px-6 sm:py-5">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-[#b88b16]">
               Editor
@@ -709,7 +716,7 @@ function EditorModal({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="max-h-[calc(92vh-112px)] overflow-y-auto px-5 py-5 sm:px-6">
+        <div className="max-h-[calc(94vh-112px)] overflow-y-auto px-4 py-4 sm:max-h-[calc(92vh-112px)] sm:px-6 sm:py-5">
           {children}
         </div>
       </div>
@@ -723,12 +730,14 @@ function CmsHeader({
   viewerName,
   viewerRole,
   onLogout,
+  onOpenNavigation,
 }: {
   title: string;
   description: string;
   viewerName: string;
   viewerRole: CmsUserRole;
   onLogout: () => void;
+  onOpenNavigation: () => void;
 }) {
   return (
     <div className="rounded-[2rem] border border-white/10 bg-black/55 px-5 py-5 shadow-2xl shadow-black/20 backdrop-blur-xl sm:px-6">
@@ -747,6 +756,14 @@ function CmsHeader({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={onOpenNavigation}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-medium text-white xl:hidden"
+          >
+            <Menu className="h-4 w-4" />
+            Navegacion
+          </button>
           <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] px-4 py-3">
             <p className="text-xs uppercase tracking-[0.22em] text-stone-500">Sesion</p>
             <p className="mt-1 font-medium text-white">{viewerName}</p>
@@ -788,6 +805,93 @@ function SearchField({
       placeholder={placeholder}
       className="h-12 w-full rounded-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/50 focus:border-[#FFDC63]/35 lg:max-w-sm"
     />
+  );
+}
+
+function CmsMobileNavigation({
+  open,
+  onClose,
+  visibleTabs,
+  activeTab,
+  onSelectTab,
+  message,
+  error,
+}: {
+  open: boolean;
+  onClose: () => void;
+  visibleTabs: typeof tabDefinitions;
+  activeTab: CmsTab;
+  onSelectTab: (tab: CmsTab) => void;
+  message: string;
+  error: boolean;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[130] bg-black/45 backdrop-blur-sm xl:hidden"
+      onClick={onClose}
+    >
+      <div
+        className="h-full w-[88vw] max-w-sm overflow-y-auto border-r border-white/10 bg-[#120f0c] p-4 shadow-2xl shadow-black/40"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <img
+                src="/logo/logo.png"
+                alt="Mendoza"
+                className="h-auto w-[88px] object-contain"
+              />
+              <p className="mt-4 text-sm leading-6 text-stone-400">
+                Panel adaptable para obras, edificios y gestion comercial.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-2">
+          {visibleTabs.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                onSelectTab(key);
+                onClose();
+              }}
+              className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition ${
+                activeTab === key
+                  ? "bg-[#FFDC63] text-black"
+                  : "bg-white/[0.05] text-white hover:bg-white/[0.09]"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {message ? (
+          <div
+            className={`mt-4 rounded-[1.4rem] px-4 py-3 text-sm ${
+              error
+                ? "bg-rose-500/10 text-rose-200"
+                : "bg-emerald-500/10 text-emerald-200"
+            }`}
+          >
+            {message}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -1432,6 +1536,7 @@ export default function CmsApp() {
   const [unitForm, setUnitForm] = useState<UnitEditorState>(buildEmptyUnit());
   const [editingUnitIndex, setEditingUnitIndex] = useState<number | null>(null);
   const [unitModalOpen, setUnitModalOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [workSearch, setWorkSearch] = useState("");
   const [buildingSearch, setBuildingSearch] = useState("");
   const [teamSearch, setTeamSearch] = useState("");
@@ -1459,6 +1564,7 @@ export default function CmsApp() {
   const assignableStaff = dashboard.staff.filter(
     (profile) => profile.role === "architect" || profile.role === "site_manager"
   );
+  const hasBlockingOverlay = mobileNavOpen || Boolean(activeModal) || unitModalOpen;
 
   const buildAssignedStaffLabel = (selectedIds: string[], fallback: string) => {
     const names = assignableStaff
@@ -1561,6 +1667,34 @@ export default function CmsApp() {
   useEffect(() => {
     setSettingsForm(dashboard.settings);
   }, [dashboard.settings]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!hasBlockingOverlay) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [hasBlockingOverlay]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+
+    const handleResize = () => {
+      if (window.innerWidth >= 1280) {
+        setMobileNavOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [mobileNavOpen]);
 
   const filteredWorks = dashboard.works.filter((work) =>
     `${work.title} ${work.location} ${work.category}`
@@ -2117,11 +2251,22 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
           }
           viewerName={dashboard.viewer.fullName}
           viewerRole={dashboard.viewer.role}
+          onOpenNavigation={() => setMobileNavOpen(true)}
           onLogout={() => void signOutCms()}
         />
 
+        <CmsMobileNavigation
+          open={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          visibleTabs={visibleTabs}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          message={screenState.message}
+          error={screenState.error}
+        />
+
         <div className="mt-4 grid gap-4 xl:grid-cols-[240px_1fr]">
-          <div className="rounded-[2rem] border border-white/10 bg-black/55 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl">
+          <div className="hidden rounded-[2rem] border border-white/10 bg-black/55 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl xl:block">
             <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] p-4">
               <img src="/logo/logo.png" alt="Mendoza" className="h-auto w-[94px] object-contain" />
               <p className="mt-4 text-sm leading-6 text-stone-400">
@@ -2160,7 +2305,7 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
             )}
           </div>
 
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {activeTab === "works" && (
               <>
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
