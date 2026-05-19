@@ -1,6 +1,7 @@
 export type ProjectStatus = "planificacion" | "en_progreso" | "finalizado";
 
 export type LeadStatus = "nuevo" | "contactado" | "seguimiento" | "cerrado";
+export type CmsUserRole = "admin" | "architect" | "site_manager" | "sales";
 
 export type ServiceItem = {
   id: string;
@@ -18,6 +19,16 @@ export type ProgressUpdate = {
   title: string;
   date: string;
   summary: string;
+  performedBy?: string;
+  photos: string[];
+  isDeleted?: boolean;
+};
+
+export type BranchOffice = {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
 };
 
 export type ContactInfo = {
@@ -25,9 +36,11 @@ export type ContactInfo = {
   whatsapp: string;
   email: string;
   address: string;
+  branches: BranchOffice[];
 };
 
 export type SiteSettings = {
+  id?: string;
   companyName: string;
   heroEyebrow: string;
   heroTitle: string;
@@ -86,6 +99,7 @@ export type BuildingProject = {
   description: string;
   heroImage: string;
   gallery: string[];
+  planFiles: string[];
   metrics: DetailMetric[];
   amenities: string[];
   units: BuildingUnit[];

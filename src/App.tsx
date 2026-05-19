@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { fallbackContent } from "./data/fallback-content";
 import { createLead, loadSiteContent } from "./lib/content";
-import { isSupabaseConfigured } from "./lib/supabase";
 import type {
   BuildingProject,
   LeadPayload,
@@ -81,10 +80,10 @@ const boliviaCities = [
 ] as const;
 
 const processSteps = [
-  ["01", "Diagnostico", "Levantamos requerimientos, alcance y objetivos comerciales del proyecto."],
-  ["02", "Estructura", "Organizamos obras, edificios, unidades, avances, mapas y galeria."],
-  ["03", "Captacion", "Recibimos cotizaciones, interesados por unidad y solicitudes comerciales."],
-  ["04", "Seguimiento", "Todo queda listo para administrarse desde Supabase como CMS operativo."],
+  ["01", "Planificacion", "Estudiamos el alcance del proyecto, el presupuesto y la estrategia constructiva."],
+  ["02", "Ejecucion", "Desarrollamos la obra con control tecnico, coordinacion en campo y seguimiento continuo."],
+  ["03", "Supervision", "Cuidamos calidad, tiempos, avances y resolucion de detalles durante cada etapa."],
+  ["04", "Entrega", "Cerramos con orden, documentacion y acompanamiento para la puesta en marcha del proyecto."],
 ] as const;
 
 function Button({
@@ -123,6 +122,29 @@ function statusLabel(status: string) {
   if (status === "en_progreso") return "En progreso";
   if (status === "finalizado") return "Finalizado";
   return "Planificacion";
+}
+
+function interestTypeLabel(
+  interestType: LeadPayload["interestType"],
+  unitLabel?: string
+) {
+  if (interestType === "departamento") {
+    return unitLabel ? `Consulta por ${unitLabel}` : "Consulta por departamento";
+  }
+
+  if (interestType === "edificio") return "Consulta por edificio";
+  if (interestType === "obra") return "Consulta por obra";
+  return "Consulta general";
+}
+
+function fileLabel(source: string) {
+  try {
+    const pathname = new URL(source).pathname;
+    const lastSegment = pathname.split("/").filter(Boolean).pop();
+    return lastSegment ? decodeURIComponent(lastSegment) : source;
+  } catch {
+    return source;
+  }
 }
 
 function parseRoute(): RouteState {
@@ -207,6 +229,8 @@ function HeroSection({
   heroAccent,
   heroDescription,
   heroImage,
+  tagline,
+  location,
   onOpenCatalog,
   onOpenContact,
 }: {
@@ -216,6 +240,8 @@ function HeroSection({
   heroAccent: string;
   heroDescription: string;
   heroImage: string;
+  tagline: string;
+  location: string;
   onOpenCatalog: () => void;
   onOpenContact: () => void;
 }) {
@@ -231,8 +257,7 @@ function HeroSection({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_24%,rgba(255,255,255,0.16),transparent_24%),radial-gradient(circle_at_84%_68%,rgba(255,220,99,0.22),transparent_22%)]" />
 
       <div className="absolute left-4 right-4 top-24 max-w-sm rounded-[1.5rem] border border-white/15 bg-black/20 px-4 py-3 text-sm leading-6 text-stone-100 backdrop-blur-xl sm:left-8 sm:px-5 sm:py-4 md:left-12 md:top-28">
-        {companyName} presenta obras, edificios, unidades disponibles, avances,
-        planos y solicitudes comerciales desde una sola experiencia.
+        {tagline}
       </div>
 
       <div className="absolute bottom-36 left-4 right-4 sm:bottom-32 sm:left-8 sm:right-8 md:bottom-20 md:left-12 md:max-w-5xl">
@@ -266,14 +291,13 @@ function HeroSection({
 
       <div className="absolute bottom-4 left-4 right-4 rounded-[1.8rem] border border-white/15 bg-black/30 p-4 backdrop-blur-2xl sm:left-auto sm:right-8 sm:bottom-8 sm:w-[360px] sm:p-6">
         <p className="text-[11px] uppercase tracking-[0.26em] text-[#FFDC63]">
-          CMS listo para crecer
+          Cobertura
         </p>
         <h2 className="mt-3 text-2xl font-semibold text-white">
-          Obras, edificios y leads
+          {location}
         </h2>
         <p className="mt-2 text-sm leading-6 text-stone-300">
-          La misma base servira para mostrar avances de obra, planos, equipo,
-          departamentos disponibles y solicitudes de interesados.
+          Atendemos proyectos residenciales, comerciales y de edificacion con seguimiento tecnico y presencia de obra.
         </p>
       </div>
     </div>
@@ -426,6 +450,7 @@ function QuoteModal({
   onSubmit,
   loading,
   success,
+  error,
   successMessage,
   contextLabel,
   isAppleMobileSafari,
@@ -437,6 +462,7 @@ function QuoteModal({
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   loading: boolean;
   success: boolean;
+  error: boolean;
   successMessage: string;
   contextLabel: string;
   isAppleMobileSafari: boolean;
@@ -448,6 +474,7 @@ function QuoteModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          onClick={onClose}
           className={`fixed inset-0 z-[80] flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6 ${
             isAppleMobileSafari ? "" : "backdrop-blur-sm"
           }`}
@@ -460,13 +487,34 @@ function QuoteModal({
               duration: isAppleMobileSafari ? 0.18 : 0.28,
               ease: "easeOut",
             }}
-            className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/10 bg-[#11100d] text-stone-100 shadow-2xl shadow-black/35"
+            onClick={(event) => event.stopPropagation()}
+            className="flex max-h-[calc(100dvh-0.75rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.85rem] border border-white/10 bg-[#11100d] text-stone-100 shadow-2xl shadow-black/35 sm:max-h-[90vh] sm:rounded-[2rem]"
           >
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
+            {loading ? (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <div className="rounded-[1.8rem] border border-white/10 bg-black/55 px-7 py-7 text-center">
+                  <img
+                    src="/logo/logo.png"
+                    alt="Logo Mondoza"
+                    className="mx-auto h-auto w-[88px] object-contain"
+                  />
+                  <p className="mt-4 text-xs uppercase tracking-[0.28em] text-[#FFDC63]">
+                    Construyendo tus suenos
+                  </p>
+                  <div className="mt-4 inline-flex items-center gap-3 text-sm text-stone-200">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#FFDC63] border-t-transparent" />
+                    Enviando solicitud
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#11100d]/95 px-4 py-4 backdrop-blur sm:px-6">
               <BrandLockup className="justify-start" />
               <button
                 type="button"
                 onClick={onClose}
+                aria-label="Cerrar modal de cotizacion"
                 className="grid h-11 w-11 place-items-center rounded-full border border-white/15 bg-white/[0.06]"
               >
                 <X className="h-5 w-5" />
@@ -474,7 +522,7 @@ function QuoteModal({
             </div>
 
             {success ? (
-              <div className="px-6 py-12 text-center sm:px-10 sm:py-16">
+              <div className="overflow-y-auto px-5 py-10 text-center sm:px-10 sm:py-16">
                 <div className="mx-auto flex justify-center">
                   <img
                     src="/logo/logo.png"
@@ -497,14 +545,14 @@ function QuoteModal({
                 </button>
               </div>
             ) : (
-              <div className="grid gap-8 px-5 py-6 sm:px-6 sm:py-8 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="overflow-y-auto px-4 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-8 lg:grid lg:grid-cols-[0.9fr_1.1fr] lg:gap-8">
                 <div>
                   <StatusPill tone="brand">{contextLabel}</StatusPill>
                   <h3 className="mt-5 text-3xl font-semibold tracking-[-0.04em] text-white">
-                    Solicita una cotizacion premium
+                    Solicita una cotizacion
                   </h3>
                   <p className="mt-4 leading-7 text-stone-300">
-                    Comparte tus datos, ciudad y lo que necesitas. El lead queda listo para seguimiento desde tu CMS.
+                    Comparte tus datos, ciudad y lo que necesitas. Nuestro equipo revisara tu solicitud y te contactara a la brevedad.
                   </p>
                 </div>
 
@@ -572,6 +620,15 @@ function QuoteModal({
                   >
                     {loading ? "Enviando..." : "Enviar solicitud"}
                   </button>
+                  {successMessage ? (
+                    <p
+                      className={`text-sm leading-6 ${
+                        error ? "text-rose-300" : "text-emerald-300"
+                      }`}
+                    >
+                      {successMessage}
+                    </p>
+                  ) : null}
                 </form>
               </div>
             )}
@@ -768,8 +825,8 @@ function DetailViewScreen({
           <div>
             <SectionHeading
               eyebrow="Resumen"
-              title="Una ficha completa, lista para vender y documentar."
-              description="Aqui ya puedes crecer luego con avances, mapa, planos, unidades, responsables y cualquier otro dato que quieras administrar desde el CMS."
+              title="Informacion esencial del proyecto en una sola vista."
+              description="Reunimos ubicacion, estado, datos tecnicos, planos y material visual para presentar cada proyecto con claridad."
             />
           </div>
 
@@ -825,7 +882,7 @@ function DetailViewScreen({
             <SectionHeading
               eyebrow="Galeria"
               title="Elige la vista y subela al espacio principal."
-              description="La galeria ya esta preparada para usar fotos de obra, renders, planos o cualquier imagen que quieras destacar."
+              description="Recorre el proyecto desde distintas vistas y revisa el material visual mas importante."
             />
             <Button
               variant="outline"
@@ -898,8 +955,8 @@ function DetailViewScreen({
             <div>
               <SectionHeading
                 eyebrow="Avances y planos"
-                title="Seguimiento de obra listo para administrarse."
-                description="Aqui se pueden publicar hitos, reportes, fotos de avance y planos vinculados a cada proyecto."
+                title="Seguimiento de obra y documentacion tecnica."
+                description="Consulta hitos de avance, registros fotograficos y planos vinculados a cada proyecto."
               />
             </div>
 
@@ -913,7 +970,24 @@ function DetailViewScreen({
                     {update.date}
                   </p>
                   <h3 className="mt-2 text-2xl font-semibold">{update.title}</h3>
+                  {update.performedBy && (
+                    <p className="mt-2 text-sm text-stone-400">
+                      Realizado por {update.performedBy}
+                    </p>
+                  )}
                   <p className="mt-3 leading-7 text-stone-400">{update.summary}</p>
+                  {update.photos.length > 0 && (
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {update.photos.map((photo, index) => (
+                        <img
+                          key={`${update.id}-photo-${index}`}
+                          src={photo}
+                          alt={`${update.title} foto ${index + 1}`}
+                          className="h-36 w-full rounded-[1.2rem] object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -923,12 +997,15 @@ function DetailViewScreen({
                 </p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   {detail.item.planFiles.map((plan) => (
-                    <span
+                    <a
                       key={plan}
+                      href={plan}
+                      target="_blank"
+                      rel="noreferrer"
                       className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-stone-200"
                     >
-                      {plan}
-                    </span>
+                      {fileLabel(plan)}
+                    </a>
                   ))}
                 </div>
               </div>
@@ -941,7 +1018,7 @@ function DetailViewScreen({
             <SectionHeading
               eyebrow="Departamentos"
               title="Disponibilidad por unidad dentro del edificio."
-              description="Cada unidad puede manejarse desde el CMS con precio, piso, area, estado y boton de solicitud."
+              description="Revisa tipologia, piso, area, precio y estado de cada unidad disponible dentro del proyecto."
             />
 
             <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -986,6 +1063,27 @@ function DetailViewScreen({
                 </div>
               ))}
             </div>
+
+            {detail.item.planFiles.length > 0 && (
+              <div className="mt-8 rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63]">
+                  Planos disponibles
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  {detail.item.planFiles.map((plan) => (
+                    <a
+                      key={plan}
+                      href={plan}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-sm text-stone-200"
+                    >
+                      {fileLabel(plan)}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -1195,6 +1293,24 @@ export default function App() {
   }, [quoteModalOpen]);
 
   useEffect(() => {
+    if (!quoteModalOpen) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setQuoteModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [quoteModalOpen]);
+
+  useEffect(() => {
     if (loadingContent || routeReadyRef.current) {
       return;
     }
@@ -1389,16 +1505,18 @@ export default function App() {
       setLeadContext({ interestType: "general" });
       setLeadState({
         loading: false,
-        message: isSupabaseConfigured
-          ? "Nos pondremos en contacto lo mas antes posible con una propuesta adecuada para tu proyecto."
-          : "Solicitud simulada en modo demo. Cuando conectes Supabase local, tambien quedara guardada como lead real.",
+        message:
+          "Nos pondremos en contacto lo mas antes posible con una propuesta adecuada para tu proyecto.",
         error: false,
       });
     } catch (error) {
       console.error(error);
       setLeadState({
         loading: false,
-        message: "No se pudo enviar la solicitud. Revisa la configuracion de Supabase.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "No se pudo enviar tu solicitud. Intenta nuevamente en unos minutos.",
         error: true,
       });
     }
@@ -1489,18 +1607,30 @@ export default function App() {
               Volver
             </button>
           ) : (
-            <button
-              type="button"
-              onClick={() => openLeadContext("general")}
-              className={`relative z-10 hidden h-[52px] items-center justify-center rounded-full px-6 text-base font-medium transition md:inline-flex ${
-                isHeaderCompact
-                  ? "border border-white/18 bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-[24px] hover:bg-white/[0.14]"
-                  : "border border-white/35 bg-white/10 text-white backdrop-blur-2xl hover:bg-white/[0.16]"
-              }`}
-            >
-              Cotizar obra
-              <ArrowUpRight className="ml-2 h-4 w-4" />
-            </button>
+            <div className="relative z-10 hidden items-center gap-3 md:flex">
+              <a
+                href="/cms"
+                className={`inline-flex h-[52px] items-center justify-center rounded-full px-5 text-sm font-medium transition ${
+                  isHeaderCompact
+                    ? "border border-white/18 bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-[24px] hover:bg-white/[0.14]"
+                    : "border border-white/35 bg-white/10 text-white backdrop-blur-2xl hover:bg-white/[0.16]"
+                }`}
+              >
+                Login
+              </a>
+              <button
+                type="button"
+                onClick={() => openLeadContext("general")}
+                className={`inline-flex h-[52px] items-center justify-center rounded-full px-6 text-base font-medium transition ${
+                  isHeaderCompact
+                    ? "border border-white/18 bg-white/[0.08] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-[24px] hover:bg-white/[0.14]"
+                    : "border border-white/35 bg-white/10 text-white backdrop-blur-2xl hover:bg-white/[0.16]"
+                }`}
+              >
+                Cotizar obra
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </button>
+            </div>
           )}
 
           <button
@@ -1529,8 +1659,8 @@ export default function App() {
           href: link.href,
           onClick: link.href === "#detalle-hero" ? closeDetail : undefined,
         }))}
-        actionLabel={detail ? "Volver" : "Solicitar cotizacion"}
-        actionHref={detail ? "#detalle-hero" : "#contacto"}
+        actionLabel={detail ? "Volver" : "Login"}
+        actionHref={detail ? "#detalle-hero" : "/cms"}
         actionOnClick={detail ? closeDetail : undefined}
         isAppleMobileSafari={isAppleMobileSafari}
       />
@@ -1545,8 +1675,9 @@ export default function App() {
         onSubmit={submitLead}
         loading={leadState.loading}
         success={Boolean(leadState.message) && !leadState.error}
+        error={leadState.error}
         successMessage={leadState.message}
-        contextLabel={`Solicitud: ${leadContext.interestType}`}
+        contextLabel={interestTypeLabel(leadContext.interestType, leadContext.unitLabel)}
         isAppleMobileSafari={isAppleMobileSafari}
       />
 
@@ -1581,6 +1712,8 @@ export default function App() {
                   heroAccent={content.settings.heroAccent}
                   heroDescription={content.settings.heroDescription}
                   heroImage={content.settings.heroImage}
+                  tagline={content.settings.tagline}
+                  location={content.settings.location}
                   onOpenCatalog={heroOpenCatalog}
                   onOpenContact={() => openLeadContext("general")}
                 />
@@ -1591,8 +1724,8 @@ export default function App() {
                   <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
                     <SectionHeading
                       eyebrow="Obras"
-                      title="Avances, planos y seguimiento para cada proyecto."
-                      description="Cada obra puede tener su propia historia, galeria, mapa, cliente, responsable, estado y registro de avances."
+                      title="Obras con criterio tecnico y ejecucion cuidada."
+                      description="Desarrollamos proyectos residenciales, comerciales e institucionales con orden, seguimiento y atencion al detalle."
                     />
                     <Button
                       variant="outline"
@@ -1624,15 +1757,11 @@ export default function App() {
                   <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
                     <SectionHeading
                       eyebrow="Servicios"
-                      title="Todo lo que una constructora necesita mostrar y controlar."
-                      description="La base ya esta pensada para leer informacion desde Supabase y luego crecer a un panel administrativo completo."
+                      title="Servicios pensados para construir bien y acompanar mejor."
+                      description="Planificamos, ejecutamos y supervisamos proyectos con una mirada practica, tecnica y cercana al cliente."
                     />
                     <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-stone-300 backdrop-blur-xl">
-                      {loadingContent
-                        ? "Cargando contenido..."
-                        : isSupabaseConfigured
-                        ? "Conectado a Supabase"
-                        : "Modo demo con contenido local"}
+                      {content.settings.location}
                     </div>
                   </div>
 
@@ -1649,8 +1778,8 @@ export default function App() {
                   <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
                     <SectionHeading
                       eyebrow="Edificios"
-                      title="Unidades disponibles, pisos, precios y consultas."
-                      description="Los edificios viven como otra entidad distinta: tienen departamentos, disponibilidad, amenidades y solicitudes por unidad."
+                      title="Edificios y desarrollos con lectura clara de cada unidad."
+                      description="Mostramos tipologias, disponibilidad y caracteristicas esenciales para que cada proyecto se entienda con claridad."
                     />
                     <Button
                       variant="outline"
@@ -1681,8 +1810,8 @@ export default function App() {
                 <div className="mx-auto max-w-7xl">
                   <SectionHeading
                     eyebrow="Nosotros"
-                    title="Duenos, gerencia y responsables editables desde el CMS."
-                    description="La seccion de equipo tambien queda lista para administrarse desde Supabase, con cargo, bio y fotografia por persona."
+                    title="Un equipo que combina direccion, obra y seguimiento tecnico."
+                    description="Acompanamos cada proyecto con responsables claros, presencia en campo y una comunicacion directa con el cliente."
                   />
 
                   <div className="mt-12 grid gap-5 lg:grid-cols-3">
@@ -1698,8 +1827,8 @@ export default function App() {
                   <div>
                     <SectionHeading
                       eyebrow="Proceso"
-                      title="Del primer plano al seguimiento comercial."
-                      description="La web deja de ser una landing suelta y se convierte en una base para administrar contenido y captar leads reales."
+                      title="Una forma de trabajo clara desde el inicio hasta la entrega."
+                      description="Cada proyecto se organiza con planificacion, ejecucion, supervision y cierre para sostener calidad y cumplimiento."
                     />
                   </div>
 
@@ -1728,21 +1857,20 @@ export default function App() {
                   <div className="grid gap-8 p-5 sm:p-8 md:p-12 lg:grid-cols-[1.05fr_.95fr] lg:p-16">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.28em] text-black/55 sm:text-sm sm:tracking-[0.32em]">
-                        Cotizaciones y leads
+                        Contacto
                       </p>
                       <h2 className="mt-4 max-w-3xl text-3xl font-semibold tracking-[-0.06em] sm:text-4xl md:text-6xl">
-                        Captura solicitudes y revisalas luego desde Supabase.
+                        Conversemos sobre tu proyecto.
                       </h2>
                       <p className="mt-6 max-w-2xl text-lg leading-8 text-black/70">
-                        Obras, edificios, departamentos o consultas generales. Todo
-                        queda listo para verse como lead dentro del CMS.
+                        Si estas planificando una obra, un edificio o una ampliacion, podemos ayudarte a revisar el alcance y preparar una cotizacion.
                       </p>
 
                       <div className="mt-8 grid gap-4 sm:grid-cols-2">
                         <div className="rounded-[1.5rem] bg-black/10 p-4">
                           <Phone className="h-5 w-5 text-black/70" />
                           <p className="mt-3 text-sm uppercase tracking-[0.22em] text-black/45">
-                            Telefono
+                            Telefono principal
                           </p>
                           <p className="mt-2 text-lg font-semibold">
                             {content.settings.contact.phone}
@@ -1762,20 +1890,25 @@ export default function App() {
 
                     <div className="rounded-[1.8rem] bg-black/10 p-5 backdrop-blur-xl sm:p-6">
                       <p className="text-sm uppercase tracking-[0.22em] text-black/45">
-                        Solicitudes premium
+                        Sucursales
                       </p>
                       <h3 className="mt-4 text-3xl font-semibold tracking-[-0.04em]">
-                        Usa el boton flotante para cotizar
+                        Estamos presentes donde se mueve la obra
                       </h3>
                       <p className="mt-4 leading-7 text-black/70">
-                        El formulario ahora abre en una experiencia premium con nombre, apellido, ciudad de Bolivia, numero, mensaje y confirmacion visual con tu marca.
+                        Puedes escribirnos o visitar la sucursal mas cercana para revisar tu proyecto con mayor detalle.
                       </p>
 
-                      <div className="mt-6 flex flex-wrap gap-3">
-                        <StatusPill tone="light">Nombre y apellido</StatusPill>
-                        <StatusPill tone="light">Ciudad de Bolivia</StatusPill>
-                        <StatusPill tone="light">Numero de contacto</StatusPill>
-                        <StatusPill tone="light">Mensaje detallado</StatusPill>
+                      <div className="mt-6 grid gap-4">
+                        {content.settings.contact.branches.map((branch) => (
+                          <div key={branch.id} className="rounded-[1.4rem] bg-black/10 p-4">
+                            <p className="text-sm uppercase tracking-[0.22em] text-black/45">
+                              {branch.name}
+                            </p>
+                            <p className="mt-2 text-lg font-semibold">{branch.address}</p>
+                            <p className="mt-2 text-sm text-black/70">{branch.phone}</p>
+                          </div>
+                        ))}
                       </div>
 
                       <button
@@ -1783,7 +1916,7 @@ export default function App() {
                         onClick={() => openLeadContext("general")}
                         className="mt-8 inline-flex h-[52px] items-center justify-center rounded-full bg-black px-6 text-base font-medium text-white"
                       >
-                        Abrir formulario premium
+                        Solicitar cotizacion
                         <ArrowUpRight className="ml-2 h-4 w-4" />
                       </button>
                     </div>
@@ -1796,20 +1929,32 @@ export default function App() {
                   <div>
                     <BrandLockup className="justify-start" />
                     <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-300">
-                      Una base lista para crecer con logo real, rutas propias, panel
-                      administrativo, mensajes internos, disponibilidad de unidades y
-                      seguimiento comercial.
+                      {content.settings.tagline || content.settings.heroDescription}
                     </p>
+                    <p className="mt-3 text-sm uppercase tracking-[0.24em] text-stone-500">
+                      {content.settings.location}
+                    </p>
+                    <a
+                      href="/cms"
+                      className="mt-6 inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-4 text-sm font-medium text-white"
+                    >
+                      Login
+                    </a>
                   </div>
-                  <div className="grid gap-3 text-sm text-stone-400">
-                    <p className="inline-flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-[#FFDC63]" />
-                      {content.settings.contact.address}
-                    </p>
-                    <p className="inline-flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-[#FFDC63]" />
-                      {content.settings.contact.phone}
-                    </p>
+                  <div className="grid gap-4 text-sm text-stone-400">
+                    {content.settings.contact.branches.map((branch) => (
+                      <div key={branch.id} className="grid gap-2">
+                        <p className="font-medium text-white">{branch.name}</p>
+                        <p className="inline-flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-[#FFDC63]" />
+                          {branch.address}
+                        </p>
+                        <p className="inline-flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-[#FFDC63]" />
+                          {branch.phone}
+                        </p>
+                      </div>
+                    ))}
                     <p className="inline-flex items-center gap-2">
                       <MessageSquare className="h-4 w-4 text-[#FFDC63]" />
                       {content.settings.contact.email}
@@ -1824,5 +1969,3 @@ export default function App() {
     </div>
   );
 }
-
-

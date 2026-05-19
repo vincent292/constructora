@@ -1,7 +1,37 @@
+import { createClient } from "@supabase/supabase-js";
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+export const supabaseProjectUrl = supabaseUrl ?? "";
+export const supabasePublicAnonKey = supabaseAnonKey ?? "";
+
+function looksLikeJwt(value: string) {
+  return value.split(".").length === 3;
+}
+
+function assertSupabasePublicConfig() {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Supabase no esta configurado.");
+  }
+
+  if (!looksLikeJwt(supabaseAnonKey)) {
+    throw new Error(
+      "La VITE_SUPABASE_ANON_KEY local no es valida. Ejecuta `npx supabase status` y copia la ANON KEY real."
+    );
+  }
+}
+
+export const supabaseClient = isSupabaseConfigured
+  ? createClient(supabaseProjectUrl, supabasePublicAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
+  : null;
 
 type QueryValue = string | number | boolean;
 
@@ -31,21 +61,25 @@ async function parseResponse<T>(response: Response): Promise<T> {
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  const text = await response.text();
+
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
 
 export async function supabaseSelect<T>(
   path: string,
   query?: Record<string, QueryValue>
 ): Promise<T> {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Supabase no configurado.");
-  }
+  assertSupabasePublicConfig();
 
   const response = await fetch(buildUrl(path, query), {
     headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
+      apikey: supabaseAnonKey!,
+      Authorization: `Bearer ${supabaseAnonKey!}`,
     },
   });
 
@@ -54,19 +88,20 @@ export async function supabaseSelect<T>(
 
 export async function supabaseInsert<TBody extends object>(
   path: string,
-  body: TBody
-) {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Supabase no configurado.");
+  body: TBody,
+  options?: {
+    prefer?: "return=representation" | "return=minimal";
   }
+) {
+  assertSupabasePublicConfig();
 
   const response = await fetch(buildUrl(path), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Prefer: "return=representation",
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${supabaseAnonKey}`,
+      Prefer: options?.prefer ?? "return=representation",
+      apikey: supabaseAnonKey!,
+      Authorization: `Bearer ${supabaseAnonKey!}`,
     },
     body: JSON.stringify(body),
   });

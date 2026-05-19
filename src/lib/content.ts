@@ -34,11 +34,15 @@ type WorkRow = {
         title: string;
         date: string;
         summary: string;
+        performed_by: string | null;
+        photos: string[] | null;
+        is_deleted: boolean | null;
       }[]
     | null;
 };
 
 type SettingsRow = {
+  id?: string;
   company_name: string;
   hero_eyebrow: string;
   hero_title: string;
@@ -65,6 +69,7 @@ type BuildingRow = {
   description: string;
   hero_image: string;
   gallery: string[] | null;
+  plan_files: string[] | null;
   metrics: BuildingProject["metrics"] | null;
   amenities: string[] | null;
   map_embed_url: string | null;
@@ -83,8 +88,12 @@ type BuildingRow = {
 };
 
 function normalizeSettings(row?: SettingsRow): SiteSettings {
+  const fallbackBranches = fallbackContent.settings.contact.branches;
+  const nextContact = row?.contact ?? fallbackContent.settings.contact;
+
   return {
     ...fallbackContent.settings,
+    id: row?.id ?? fallbackContent.settings.id,
     companyName: row?.company_name ?? fallbackContent.settings.companyName,
     heroEyebrow: row?.hero_eyebrow ?? fallbackContent.settings.heroEyebrow,
     heroTitle: row?.hero_title ?? fallbackContent.settings.heroTitle,
@@ -96,7 +105,11 @@ function normalizeSettings(row?: SettingsRow): SiteSettings {
     location: row?.location ?? fallbackContent.settings.location,
     contact: {
       ...fallbackContent.settings.contact,
-      ...(row?.contact ?? {}),
+      ...nextContact,
+      branches:
+        nextContact?.branches && nextContact.branches.length > 0
+          ? nextContact.branches
+          : fallbackBranches,
     },
   };
 }
@@ -120,7 +133,16 @@ function mapWork(row: WorkRow): WorkProject {
     planFiles: row.plan_files ?? [],
     metrics: row.metrics ?? [],
     mapEmbedUrl: row.map_embed_url ?? undefined,
-    updates: row.updates ?? [],
+    updates:
+      row.updates?.map((update) => ({
+        id: update.id,
+        title: update.title,
+        date: update.date,
+        summary: update.summary,
+        performedBy: update.performed_by ?? undefined,
+        photos: update.photos ?? [],
+        isDeleted: update.is_deleted ?? false,
+      })).filter((update) => !update.isDeleted) ?? [],
   };
 }
 
@@ -140,6 +162,7 @@ function mapBuilding(row: BuildingRow): BuildingProject {
     description: row.description,
     heroImage: row.hero_image,
     gallery: row.gallery ?? [],
+    planFiles: row.plan_files ?? [],
     metrics: row.metrics ?? [],
     amenities: row.amenities ?? [],
     mapEmbedUrl: row.map_embed_url ?? undefined,
@@ -174,12 +197,12 @@ export async function loadSiteContent(): Promise<SiteContent> {
       }),
       supabaseSelect<WorkRow[]>("works", {
         select:
-          "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,metrics,map_embed_url,updates:work_updates(id,title,date,summary)",
+          "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,metrics,map_embed_url,updates:work_updates(id,title,date,summary,performed_by,photos,is_deleted)",
         order: "created_at.desc",
       }),
       supabaseSelect<BuildingRow[]>("buildings", {
         select:
-          "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,metrics,amenities,map_embed_url,units:building_units(id,title,bedrooms,bathrooms,area,floor_label,price,is_available)",
+          "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,metrics,amenities,map_embed_url,units:building_units(id,title,bedrooms,bathrooms,area,floor_label,price,is_available)",
         order: "created_at.desc",
       }),
       supabaseSelect<TeamMember[]>("team_members", {
@@ -208,14 +231,20 @@ export async function createLead(payload: LeadPayload) {
     return { ok: true, stored: "local-only" };
   }
 
-  return supabaseInsert("leads", {
-    full_name: payload.fullName,
-    phone: payload.phone,
-    email: payload.email,
-    message: payload.message,
-    interest_type: payload.interestType,
-    reference_slug: payload.referenceSlug ?? null,
-    unit_label: payload.unitLabel ?? null,
-    status: "nuevo",
-  });
+  await supabaseInsert(
+    "leads",
+    {
+      full_name: payload.fullName,
+      phone: payload.phone,
+      email: payload.email,
+      message: payload.message,
+      interest_type: payload.interestType,
+      reference_slug: payload.referenceSlug ?? null,
+      unit_label: payload.unitLabel ?? null,
+      status: "nuevo",
+    },
+    { prefer: "return=minimal" }
+  );
+
+  return { ok: true, stored: "supabase" };
 }

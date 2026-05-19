@@ -9,20 +9,34 @@ import type {
 
 const settings: SiteSettings = {
   companyName: "Mondoza Construcciones Civiles en General",
-  heroEyebrow: "Constructora premium en Bolivia",
+  heroEyebrow: "Construccion civil y edificacion",
   heroTitle: "Construyendo",
   heroAccent: "tus suenos",
   heroDescription:
-    "Obras, edificios, avances, planos, unidades disponibles y solicitudes de cotizacion desde una sola plataforma visual y administrable.",
+    "Ejecutamos obras civiles, edificios y proyectos residenciales con seguimiento tecnico, criterio constructivo y atencion cercana en cada etapa.",
   heroImage:
     "https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=2400&q=90",
-  tagline: "Arquitectura, ejecucion y control con una experiencia elegante.",
-  location: "Cochabamba, Bolivia",
+  tagline: "Soluciones constructivas para vivienda, comercio y desarrollo inmobiliario.",
+  location: "Cochabamba y Santa Cruz, Bolivia",
   contact: {
     phone: "+591 70000000",
     whatsapp: "+591 70000000",
     email: "contacto@mondozaconstrucciones.com",
     address: "Cochabamba, Bolivia",
+    branches: [
+      {
+        id: "branch-1",
+        name: "Sucursal Cochabamba",
+        address: "Av. America Oeste, Cochabamba, Bolivia",
+        phone: "+591 70000000",
+      },
+      {
+        id: "branch-2",
+        name: "Sucursal Santa Cruz",
+        address: "Equipetrol Norte, Santa Cruz, Bolivia",
+        phone: "+591 71000000",
+      },
+    ],
   },
 };
 
@@ -30,22 +44,22 @@ const services: ServiceItem[] = [
   {
     id: "srv-1",
     title: "Ejecucion integral de obras",
-    text: "Planificacion, construccion y seguimiento completo de proyectos residenciales, comerciales y urbanos.",
+    text: "Planificacion, construccion y control de obras residenciales, comerciales e institucionales.",
   },
   {
     id: "srv-2",
     title: "Desarrollo de edificios",
-    text: "Gestion de torres, departamentos, disponibilidad por unidad y presentacion comercial del proyecto.",
+    text: "Ejecucion de edificios multifamiliares y desarrollos verticales con lectura clara de unidades y tipologias.",
   },
   {
     id: "srv-3",
     title: "Supervision y avances",
-    text: "Control de obra, registro fotografico, hitos de avance, entregas y documentacion tecnica.",
+    text: "Seguimiento tecnico, control de calidad, registro de avances y coordinacion en obra.",
   },
   {
     id: "srv-4",
-    title: "Cotizaciones y leads",
-    text: "Recepcion de solicitudes desde la web y seguimiento comercial centralizado para el equipo.",
+    title: "Remodelacion y ampliacion",
+    text: "Intervenimos viviendas, locales y espacios existentes con soluciones funcionales y buen criterio constructivo.",
   },
 ];
 
@@ -85,12 +99,21 @@ const works: WorkProject[] = [
         title: "Cimentacion terminada",
         date: "2026-02-18",
         summary: "Se completo la base estructural y se cerro el primer control de calidad.",
+        performedBy: "Ing. Pablo Quiroga",
+        photos: [
+          "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1600&q=90",
+        ],
       },
       {
         id: "update-2",
         title: "Muros y estructura principal",
         date: "2026-03-25",
         summary: "La volumetria principal ya puede revisarse visualmente en recorridos y fotografias.",
+        performedBy: "Arq. Daniela Rojas",
+        photos: [
+          "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=1600&q=90",
+          "https://images.unsplash.com/photo-1599707254554-027aeb4deacd?auto=format&fit=crop&w=1600&q=90",
+        ],
       },
     ],
     mapEmbedUrl:
@@ -131,6 +154,10 @@ const works: WorkProject[] = [
         title: "Entrega final",
         date: "2024-11-09",
         summary: "Se entregaron planos finales, fotografias y documentacion de cierre del proyecto.",
+        performedBy: "Ing. Marcelo Mondoza",
+        photos: [
+          "https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=1600&q=90",
+        ],
       },
     ],
     mapEmbedUrl:
@@ -161,6 +188,7 @@ const buildings: BuildingProject[] = [
       "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=2200&q=90",
       "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=2200&q=90",
     ],
+    planFiles: ["https://example.com/planos/torre-mirador-planta-tipica.pdf"],
     metrics: [
       { label: "Unidades", value: "28 departamentos" },
       { label: "Estado", value: "En progreso" },
