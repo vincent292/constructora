@@ -59,6 +59,7 @@ type WorkRow = {
   hero_image: string;
   gallery: string[] | null;
   plan_files: string[] | null;
+  brochure_file: string | null;
   metrics: WorkProject["metrics"] | null;
   map_embed_url: string | null;
   updates:
@@ -89,6 +90,7 @@ type BuildingRow = {
   hero_image: string;
   gallery: string[] | null;
   plan_files: string[] | null;
+  brochure_file: string | null;
   metrics: BuildingProject["metrics"] | null;
   amenities: string[] | null;
   map_embed_url: string | null;
@@ -147,6 +149,8 @@ type SiteSettingsRow = {
   tagline: string;
   location: string;
   contact: SiteSettings["contact"] | null;
+  testimonials: SiteSettings["testimonials"] | null;
+  faqs: SiteSettings["faqs"] | null;
 };
 
 type WorkAssignmentRow = {
@@ -194,6 +198,7 @@ function mapWork(row: WorkRow): WorkProject {
     heroImage: row.hero_image,
     gallery: row.gallery ?? [],
     planFiles: row.plan_files ?? [],
+    brochureFile: row.brochure_file ?? undefined,
     metrics: row.metrics ?? [],
     updates:
       row.updates?.map((update) => ({
@@ -225,6 +230,7 @@ function mapBuilding(row: BuildingRow): BuildingProject {
     heroImage: row.hero_image,
     gallery: row.gallery ?? [],
     planFiles: row.plan_files ?? [],
+    brochureFile: row.brochure_file ?? undefined,
     metrics: row.metrics ?? [],
     amenities: row.amenities ?? [],
     mapEmbedUrl: row.map_embed_url ?? undefined,
@@ -292,6 +298,14 @@ function mapSiteSettings(row?: SiteSettingsRow): SiteSettings {
           ? nextContact.branches
           : fallbackBranches,
     },
+    testimonials:
+      row?.testimonials && row.testimonials.length > 0
+        ? row.testimonials
+        : fallbackContent.testimonials,
+    faqs:
+      row?.faqs && row.faqs.length > 0
+        ? row.faqs
+        : fallbackContent.faqs,
   };
 }
 
@@ -343,12 +357,20 @@ export async function signUpCms(email: string, password: string) {
   const userEmail = data.user?.email ?? email;
 
   if (userId) {
+    const { count, error: countError } = await client
+      .from("admin_profiles")
+      .select("user_id", { count: "exact", head: true });
+
+    if (countError) {
+      throw countError;
+    }
+
     const { error: profileError } = await client.from("admin_profiles").upsert(
       {
         user_id: userId,
         full_name: userEmail,
         email: userEmail,
-        role: "architect",
+        role: count && count > 0 ? "architect" : "admin",
       },
       { onConflict: "user_id" }
     );
@@ -414,13 +436,13 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
     client
       .from("works")
       .select(
-        "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,metrics,map_embed_url,updates:work_updates(id,title,date,summary,performed_by,photos,is_deleted)"
+        "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,brochure_file,metrics,map_embed_url,updates:work_updates(id,title,date,summary,performed_by,photos,is_deleted)"
       )
       .order("created_at", { ascending: false }),
     client
       .from("buildings")
       .select(
-        "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,metrics,amenities,map_embed_url,units:building_units(id,title,bedrooms,bathrooms,area,floor_label,price,is_available)"
+        "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,brochure_file,metrics,amenities,map_embed_url,units:building_units(id,title,bedrooms,bathrooms,area,floor_label,price,is_available)"
       )
       .order("created_at", { ascending: false }),
     client
@@ -559,6 +581,7 @@ export async function saveWork(work: Omit<WorkProject, "id"> & { id?: string }) 
     hero_image: work.heroImage,
     gallery: work.gallery,
     plan_files: work.planFiles,
+    brochure_file: work.brochureFile ?? null,
     metrics: work.metrics,
     map_embed_url: work.mapEmbedUrl ?? null,
   };
@@ -709,6 +732,7 @@ export async function saveBuilding(
     hero_image: building.heroImage,
     gallery: building.gallery,
     plan_files: building.planFiles,
+    brochure_file: building.brochureFile ?? null,
     metrics: building.metrics,
     amenities: building.amenities,
     map_embed_url: building.mapEmbedUrl ?? null,
@@ -853,6 +877,8 @@ export async function saveSiteSettings(settings: SiteSettings) {
     tagline: settings.tagline,
     location: settings.location,
     contact: settings.contact,
+    testimonials: settings.testimonials,
+    faqs: settings.faqs,
   };
 
   if (settings.id) {
@@ -940,6 +966,7 @@ export function buildEmptyWork(): Omit<WorkProject, "id"> {
     heroImage: "",
     gallery: [],
     planFiles: [],
+    brochureFile: "",
     metrics: [],
     updates: [],
     mapEmbedUrl: "",
@@ -962,6 +989,7 @@ export function buildEmptyBuilding(): Omit<BuildingProject, "id"> {
     heroImage: "",
     gallery: [],
     planFiles: [],
+    brochureFile: "",
     metrics: [],
     amenities: [],
     units: [],

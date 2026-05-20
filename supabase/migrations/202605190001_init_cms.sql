@@ -9,6 +9,8 @@ create table if not exists public.site_settings (
   tagline text not null,
   location text not null,
   contact jsonb not null default '{}'::jsonb,
+  testimonials jsonb not null default '[]'::jsonb,
+  faqs jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -36,10 +38,14 @@ create table if not exists public.works (
   hero_image text not null,
   gallery jsonb not null default '[]'::jsonb,
   plan_files jsonb not null default '[]'::jsonb,
+  brochure_file text,
   metrics jsonb not null default '[]'::jsonb,
   map_embed_url text,
   created_at timestamptz not null default now()
 );
+
+alter table public.works
+  add column if not exists brochure_file text;
 
 create table if not exists public.work_updates (
   id uuid primary key default gen_random_uuid(),
@@ -82,6 +88,7 @@ create table if not exists public.buildings (
   hero_image text not null,
   gallery jsonb not null default '[]'::jsonb,
   plan_files jsonb not null default '[]'::jsonb,
+  brochure_file text,
   metrics jsonb not null default '[]'::jsonb,
   amenities jsonb not null default '[]'::jsonb,
   map_embed_url text,
@@ -90,6 +97,9 @@ create table if not exists public.buildings (
 
 alter table public.buildings
   add column if not exists plan_files jsonb not null default '[]'::jsonb;
+
+alter table public.buildings
+  add column if not exists brochure_file text;
 
 create table if not exists public.building_units (
   id uuid primary key default gen_random_uuid(),

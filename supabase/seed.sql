@@ -10,7 +10,9 @@ insert into public.site_settings (
   hero_image,
   tagline,
   location,
-  contact
+  contact,
+  testimonials,
+  faqs
 )
 values (
   '00000000-0000-0000-0000-000000000001',
@@ -22,7 +24,9 @@ values (
   'https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=2400&q=90',
   'Soluciones constructivas para vivienda, comercio y desarrollo inmobiliario.',
   'Cochabamba y Santa Cruz, Bolivia',
-  '{"phone":"+591 70000000","whatsapp":"+591 70000000","email":"contacto@mondozaconstrucciones.com","address":"Cochabamba, Bolivia","branches":[{"id":"branch-1","name":"Sucursal Cochabamba","address":"Av. America Oeste, Cochabamba, Bolivia","phone":"+591 70000000"},{"id":"branch-2","name":"Sucursal Santa Cruz","address":"Equipetrol Norte, Santa Cruz, Bolivia","phone":"+591 71000000"}]}'::jsonb
+  '{"phone":"+591 70000000","whatsapp":"+591 70000000","email":"contacto@mondozaconstrucciones.com","address":"Cochabamba, Bolivia","branches":[{"id":"branch-1","name":"Sucursal Cochabamba","address":"Av. America Oeste, Cochabamba, Bolivia","phone":"+591 70000000"},{"id":"branch-2","name":"Sucursal Santa Cruz","address":"Equipetrol Norte, Santa Cruz, Bolivia","phone":"+591 71000000"}]}'::jsonb,
+  '[{"id":"testimonial-1","name":"Carla Camacho","role":"Cliente residencial","company":"Familia Camacho","quote":"Valoramos mucho el orden del proceso, la claridad en los avances y la forma en que el equipo resolvio detalles durante toda la obra."},{"id":"testimonial-2","name":"Jorge Nova","role":"Director comercial","company":"Nova Group","quote":"La ejecucion fue seria y bien coordinada. Tuvimos seguimiento claro, buena comunicacion y una entrega consistente con lo proyectado."},{"id":"testimonial-3","name":"Daniela Ortega","role":"Propietaria","company":"Villa Jardin Sur","quote":"Nos dio confianza ver planos, decisiones y avances con una presentacion ordenada. Se noto experiencia y criterio constructivo."}]'::jsonb,
+  '[{"id":"faq-1","question":"Que tipo de proyectos desarrolla Mondoza?","answer":"Trabajamos obras residenciales, comerciales, edificios y ampliaciones con seguimiento tecnico, coordinacion en obra y control de avances."},{"id":"faq-2","question":"Pueden cotizar una obra desde planos iniciales?","answer":"Si. Podemos revisar planos preliminares, programa, ubicacion y alcance para orientar una cotizacion inicial o una etapa de presupuesto mas precisa."},{"id":"faq-3","question":"Como se realiza el seguimiento de una obra?","answer":"El seguimiento se organiza por hitos, avances, registro fotografico, responsables y comunicacion constante segun el tipo de proyecto."},{"id":"faq-4","question":"Tambien manejan edificios con unidades disponibles?","answer":"Si. Podemos mostrar tipologias, disponibilidad, amenidades, planos y datos clave de cada unidad dentro del desarrollo."}]'::jsonb
 );
 
 insert into public.services (id, title, text, display_order)
@@ -49,7 +53,7 @@ on conflict (id) do update set
   display_order = excluded.display_order;
 
 insert into public.works (
-  id, slug, title, category, location, year, area, status, client_name, owner_name, summary, description, hero_image, gallery, plan_files, metrics, map_embed_url
+  id, slug, title, category, location, year, area, status, client_name, owner_name, summary, description, hero_image, gallery, plan_files, brochure_file, metrics, map_embed_url
 )
 values
   (
@@ -68,6 +72,7 @@ values
     'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=90',
     '["https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=2200&q=90"]'::jsonb,
     '["https://example.com/planos/casa-piedra-norte-planta-baja.pdf","https://example.com/planos/casa-piedra-norte-cortes.pdf"]'::jsonb,
+    'https://example.com/brochures/casa-piedra-norte-ficha.pdf',
     '[{"label":"Cliente","value":"Familia Camacho"},{"label":"Estado","value":"En progreso"},{"label":"Entrega","value":"Segundo semestre 2026"},{"label":"Supervision","value":"Semanal"}]'::jsonb,
     'https://www.google.com/maps?q=Cochabamba%20Bolivia&output=embed'
   ),
@@ -87,6 +92,7 @@ values
     'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2200&q=90',
     '["https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1497366412874-3415097a27e7?auto=format&fit=crop&w=2200&q=90"]'::jsonb,
     '["https://example.com/planos/nova-masterplan.pdf","https://example.com/planos/nova-fachada.pdf"]'::jsonb,
+    'https://example.com/brochures/centro-empresarial-nova-ficha.pdf',
     '[{"label":"Cliente","value":"Nova Group"},{"label":"Estado","value":"Finalizado"},{"label":"Entrega","value":"2024"},{"label":"Programa","value":"Oficinas + retail"}]'::jsonb,
     'https://www.google.com/maps?q=Santa%20Cruz%20Bolivia&output=embed'
   ),
@@ -106,6 +112,7 @@ values
     'https://images.unsplash.com/photo-1600573472550-8090b5e0745e?auto=format&fit=crop&w=2200&q=90',
     '["https://images.unsplash.com/photo-1600573472550-8090b5e0745e?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1600566752227-8f3b9653d4a3?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1600210492486-724fe5c67fb3?auto=format&fit=crop&w=2200&q=90"]'::jsonb,
     '["https://example.com/planos/villa-jardin-planta-arquitectonica.pdf"]'::jsonb,
+    'https://example.com/brochures/villa-jardin-sur-ficha.pdf',
     '[{"label":"Cliente","value":"Familia Ortega"},{"label":"Estado","value":"Planificacion"},{"label":"Entrega","value":"2027"},{"label":"Supervision","value":"Quincenal"}]'::jsonb,
     'https://www.google.com/maps?q=La%20Paz%20Bolivia&output=embed'
   )
@@ -124,6 +131,7 @@ on conflict (id) do update set
   hero_image = excluded.hero_image,
   gallery = excluded.gallery,
   plan_files = excluded.plan_files,
+  brochure_file = excluded.brochure_file,
   metrics = excluded.metrics,
   map_embed_url = excluded.map_embed_url;
 
@@ -141,7 +149,7 @@ values
   ('00000000-0000-0000-0000-000000000404', '00000000-0000-0000-0000-000000000303', 'Aprobacion de anteproyecto', '2026-05-14', 'Se cerro la fase de revision arquitectonica y se habilito documentacion tecnica.', 'Arq. Daniela Rojas', '["https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&w=1600&q=90"]'::jsonb, false);
 
 insert into public.buildings (
-  id, slug, title, category, location, year, area, status, client_name, owner_name, summary, description, hero_image, gallery, plan_files, metrics, amenities, map_embed_url
+  id, slug, title, category, location, year, area, status, client_name, owner_name, summary, description, hero_image, gallery, plan_files, brochure_file, metrics, amenities, map_embed_url
 )
 values
   (
@@ -160,6 +168,7 @@ values
     'https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=2200&q=90',
     '["https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=2200&q=90"]'::jsonb,
     '["https://example.com/planos/torre-mirador-planta-tipica.pdf"]'::jsonb,
+    'https://example.com/brochures/torre-mirador-ficha.pdf',
     '[{"label":"Unidades","value":"28 departamentos"},{"label":"Estado","value":"En progreso"},{"label":"Entrega","value":"2026"},{"label":"Modalidad","value":"Venta directa"}]'::jsonb,
     '["Lobby doble altura","Terraza social","Parqueos","Seguridad 24/7"]'::jsonb,
     'https://www.google.com/maps?q=Cochabamba%20Bolivia&output=embed'
@@ -180,6 +189,7 @@ values
     'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=2200&q=90',
     '["https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=2200&q=90"]'::jsonb,
     '["https://example.com/planos/altos-bosque-tipologia-a.pdf","https://example.com/planos/altos-bosque-tipologia-b.pdf"]'::jsonb,
+    'https://example.com/brochures/altos-del-bosque-ficha.pdf',
     '[{"label":"Unidades","value":"34 departamentos"},{"label":"Estado","value":"Planificacion"},{"label":"Entrega","value":"2027"},{"label":"Modalidad","value":"Preventa"}]'::jsonb,
     '["Cowork","Rooftop","Piscina temperada","Gym"]'::jsonb,
     'https://www.google.com/maps?q=La%20Paz%20Bolivia&output=embed'
@@ -200,6 +210,7 @@ values
     'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=2200&q=90',
     '["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=2200&q=90","https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=2200&q=90"]'::jsonb,
     '["https://example.com/planos/nova-suites-tipo-estudio.pdf"]'::jsonb,
+    'https://example.com/brochures/nova-suites-ficha.pdf',
     '[{"label":"Unidades","value":"40 suites"},{"label":"Estado","value":"Finalizado"},{"label":"Entrega","value":"2025"},{"label":"Modalidad","value":"Venta directa"}]'::jsonb,
     '["Lobby","Business lounge","Gym","Seguridad 24/7"]'::jsonb,
     'https://www.google.com/maps?q=Santa%20Cruz%20Bolivia&output=embed'
@@ -219,6 +230,7 @@ on conflict (id) do update set
   hero_image = excluded.hero_image,
   gallery = excluded.gallery,
   plan_files = excluded.plan_files,
+  brochure_file = excluded.brochure_file,
   metrics = excluded.metrics,
   amenities = excluded.amenities,
   map_embed_url = excluded.map_embed_url;

@@ -50,6 +50,8 @@ export type SiteSettings = {
   tagline: string;
   location: string;
   contact: ContactInfo;
+  testimonials: TestimonialItem[];
+  faqs: FaqItem[];
 };
 
 export type WorkProject = {
@@ -68,6 +70,7 @@ export type WorkProject = {
   heroImage: string;
   gallery: string[];
   planFiles: string[];
+  brochureFile?: string;
   metrics: DetailMetric[];
   updates: ProgressUpdate[];
   mapEmbedUrl?: string;
@@ -100,6 +103,7 @@ export type BuildingProject = {
   heroImage: string;
   gallery: string[];
   planFiles: string[];
+  brochureFile?: string;
   metrics: DetailMetric[];
   amenities: string[];
   units: BuildingUnit[];
@@ -112,6 +116,20 @@ export type TeamMember = {
   role: string;
   bio: string;
   image: string;
+};
+
+export type TestimonialItem = {
+  id: string;
+  name: string;
+  role: string;
+  company?: string;
+  quote: string;
+};
+
+export type FaqItem = {
+  id: string;
+  question: string;
+  answer: string;
 };
 
 export type LeadPayload = {
@@ -130,4 +148,6 @@ export type SiteContent = {
   works: WorkProject[];
   buildings: BuildingProject[];
   team: TeamMember[];
+  testimonials: TestimonialItem[];
+  faqs: FaqItem[];
 };

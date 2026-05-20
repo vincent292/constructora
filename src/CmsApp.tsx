@@ -26,10 +26,12 @@ import type {
   CmsUserRole,
   SiteSettings,
   DetailMetric,
+  FaqItem,
   LeadStatus,
   ProgressUpdate,
   ProjectStatus,
   TeamMember,
+  TestimonialItem,
   WorkProject,
 } from "./types/cms";
 import {
@@ -79,6 +81,7 @@ type WorkEditorState = {
   heroImage: string;
   gallery: string[];
   planFiles: string[];
+  brochureFile: string;
   metrics: DetailMetric[];
   updates: ProgressUpdate[];
   mapEmbedUrl: string;
@@ -101,6 +104,7 @@ type BuildingEditorState = {
   heroImage: string;
   gallery: string[];
   planFiles: string[];
+  brochureFile: string;
   metrics: DetailMetric[];
   amenities: string[];
   units: BuildingUnit[];
@@ -120,6 +124,8 @@ type UnitEditorState = {
 };
 
 type BranchEditorState = BranchOffice;
+type TestimonialEditorState = TestimonialItem;
+type FaqEditorState = FaqItem;
 
 type TeamEditorState = {
   id?: string;
@@ -398,6 +404,7 @@ function toWorkEditorState(work: Omit<WorkProject, "id"> & { id?: string }): Wor
     heroImage: work.heroImage,
     gallery: work.gallery,
     planFiles: work.planFiles,
+    brochureFile: work.brochureFile ?? "",
     metrics: work.metrics,
     updates: work.updates,
     mapEmbedUrl: work.mapEmbedUrl ?? "",
@@ -424,6 +431,7 @@ function toBuildingEditorState(
     heroImage: building.heroImage,
     gallery: building.gallery,
     planFiles: building.planFiles,
+    brochureFile: building.brochureFile ?? "",
     metrics: building.metrics,
     amenities: building.amenities,
     units: building.units,
@@ -472,6 +480,24 @@ function buildEmptyBranch(): BranchOffice {
     name: "",
     address: "",
     phone: "",
+  };
+}
+
+function buildEmptyTestimonial(): TestimonialEditorState {
+  return {
+    id: `testimonial-${Date.now()}`,
+    name: "",
+    role: "",
+    company: "",
+    quote: "",
+  };
+}
+
+function buildEmptyFaq(): FaqEditorState {
+  return {
+    id: `faq-${Date.now()}`,
+    question: "",
+    answer: "",
   };
 }
 
@@ -810,6 +836,24 @@ function SearchField({
       placeholder={placeholder}
       className="h-12 w-full rounded-full border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/50 focus:border-[#FFDC63]/35 lg:max-w-sm"
     />
+  );
+}
+
+function DashboardStatCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] p-4 shadow-xl shadow-black/10 backdrop-blur-xl">
+      <p className="text-[11px] uppercase tracking-[0.24em] text-stone-500">{label}</p>
+      <p className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white">{value}</p>
+      <p className="mt-2 text-sm leading-6 text-stone-400">{hint}</p>
+    </div>
   );
 }
 
@@ -1515,6 +1559,8 @@ export default function CmsApp() {
         address: "",
         branches: [],
       },
+      testimonials: [],
+      faqs: [],
     },
     works: [],
     buildings: [],
@@ -1540,10 +1586,18 @@ export default function CmsApp() {
   const [staffForm, setStaffForm] = useState<StaffEditorState>(toStaffEditorState());
   const [unitForm, setUnitForm] = useState<UnitEditorState>(buildEmptyUnit());
   const [branchForm, setBranchForm] = useState<BranchEditorState>(buildEmptyBranch());
+  const [testimonialForm, setTestimonialForm] = useState<TestimonialEditorState>(
+    buildEmptyTestimonial()
+  );
+  const [faqForm, setFaqForm] = useState<FaqEditorState>(buildEmptyFaq());
   const [editingUnitIndex, setEditingUnitIndex] = useState<number | null>(null);
   const [editingBranchIndex, setEditingBranchIndex] = useState<number | null>(null);
+  const [editingTestimonialIndex, setEditingTestimonialIndex] = useState<number | null>(null);
+  const [editingFaqIndex, setEditingFaqIndex] = useState<number | null>(null);
   const [unitModalOpen, setUnitModalOpen] = useState(false);
   const [branchModalOpen, setBranchModalOpen] = useState(false);
+  const [testimonialModalOpen, setTestimonialModalOpen] = useState(false);
+  const [faqModalOpen, setFaqModalOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [workSearch, setWorkSearch] = useState("");
   const [buildingSearch, setBuildingSearch] = useState("");
@@ -1573,7 +1627,12 @@ export default function CmsApp() {
     (profile) => profile.role === "architect" || profile.role === "site_manager"
   );
   const hasBlockingOverlay =
-    mobileNavOpen || Boolean(activeModal) || unitModalOpen || branchModalOpen;
+    mobileNavOpen ||
+    Boolean(activeModal) ||
+    unitModalOpen ||
+    branchModalOpen ||
+    testimonialModalOpen ||
+    faqModalOpen;
 
   const buildAssignedStaffLabel = (selectedIds: string[], fallback: string) => {
     const names = assignableStaff
@@ -1633,6 +1692,28 @@ export default function CmsApp() {
       setEditingBranchIndex(null);
     }
     setBranchModalOpen(true);
+  };
+
+  const openTestimonialEditor = (index?: number) => {
+    if (typeof index === "number") {
+      setTestimonialForm(settingsForm.testimonials[index]);
+      setEditingTestimonialIndex(index);
+    } else {
+      setTestimonialForm(buildEmptyTestimonial());
+      setEditingTestimonialIndex(null);
+    }
+    setTestimonialModalOpen(true);
+  };
+
+  const openFaqEditor = (index?: number) => {
+    if (typeof index === "number") {
+      setFaqForm(settingsForm.faqs[index]);
+      setEditingFaqIndex(index);
+    } else {
+      setFaqForm(buildEmptyFaq());
+      setEditingFaqIndex(null);
+    }
+    setFaqModalOpen(true);
   };
 
   const refreshDashboard = async () => {
@@ -1736,6 +1817,33 @@ export default function CmsApp() {
       .toLowerCase()
       .includes(staffSearch.toLowerCase())
   );
+  const cmsStats = [
+    {
+      label: "Obras activas",
+      value: String(dashboard.works.filter((work) => work.status === "en_progreso").length),
+      hint: "Proyectos en ejecucion o seguimiento.",
+    },
+    {
+      label: "Edificios visibles",
+      value: String(dashboard.buildings.length),
+      hint: "Desarrollos listados en la plataforma.",
+    },
+    {
+      label: "Unidades disponibles",
+      value: String(
+        dashboard.buildings.reduce(
+          (total, building) => total + building.units.filter((unit) => unit.isAvailable).length,
+          0
+        )
+      ),
+      hint: "Departamentos o unidades listas para consulta.",
+    },
+    {
+      label: "Leads nuevos",
+      value: String(dashboard.leads.filter((lead) => lead.status === "nuevo").length),
+      hint: "Solicitudes pendientes de primer contacto.",
+    },
+  ];
 
   const uploadMany = async (
     files: FileList | null,
@@ -1781,9 +1889,14 @@ export default function CmsApp() {
       }
     } catch (error) {
       console.error(error);
+      const nextMessage =
+        error instanceof Error &&
+        error.message.toLowerCase().includes("invalid login credentials")
+          ? "Correo o contrasena incorrectos. Si es tu primer acceso, usa Crear administrador."
+          : "No se pudo autenticar en Supabase.";
       setScreenState({
         loading: false,
-        message: "No se pudo autenticar en Supabase.",
+        message: nextMessage,
         error: true,
       });
     }
@@ -1825,6 +1938,7 @@ export default function CmsApp() {
         heroImage: workForm.heroImage,
         gallery: workForm.gallery,
         planFiles: workForm.planFiles,
+        brochureFile: workForm.brochureFile || undefined,
         metrics: workForm.metrics,
         updates: workForm.updates,
         mapEmbedUrl: workForm.mapEmbedUrl || undefined,
@@ -1871,6 +1985,7 @@ export default function CmsApp() {
         heroImage: buildingForm.heroImage,
         gallery: buildingForm.gallery,
         planFiles: buildingForm.planFiles,
+        brochureFile: buildingForm.brochureFile || undefined,
         metrics: buildingForm.metrics,
         amenities: buildingForm.amenities,
         units: buildingForm.units,
@@ -2285,6 +2400,17 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
           error={screenState.error}
         />
 
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+          {cmsStats.map((stat) => (
+            <DashboardStatCard
+              key={stat.label}
+              label={stat.label}
+              value={stat.value}
+              hint={stat.hint}
+            />
+          ))}
+        </div>
+
         <div className="mt-4 grid gap-4 xl:grid-cols-[240px_1fr]">
           <div className="hidden rounded-[2rem] border border-white/10 bg-black/55 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl xl:block">
             <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] p-4">
@@ -2655,6 +2781,132 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                   </div>
                 </CardShell>
 
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <CardShell className="p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-stone-900">Testimonios</h3>
+                        <p className="mt-2 text-sm leading-6 text-stone-500">
+                          Comentarios de clientes o desarrolladores visibles en la landing.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openTestimonialEditor()}
+                        className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Nuevo testimonio
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      {settingsForm.testimonials.map((testimonial, index) => (
+                        <div
+                          key={testimonial.id}
+                          className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-stone-900">
+                                {testimonial.name}
+                              </p>
+                              <p className="mt-1 text-sm text-stone-500">
+                                {testimonial.role}
+                                {testimonial.company ? ` · ${testimonial.company}` : ""}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openTestimonialEditor(index)}
+                                className="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-700"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSettingsForm((current) => ({
+                                    ...current,
+                                    testimonials: current.testimonials.filter(
+                                      (_, currentIndex) => currentIndex !== index
+                                    ),
+                                  }))
+                                }
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-3 text-sm leading-6 text-stone-600">
+                            "{testimonial.quote}"
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardShell>
+
+                  <CardShell className="p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-stone-900">FAQ</h3>
+                        <p className="mt-2 text-sm leading-6 text-stone-500">
+                          Preguntas frecuentes para resolver dudas comunes en la web.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openFaqEditor()}
+                        className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Nueva pregunta
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      {settingsForm.faqs.map((faq, index) => (
+                        <div
+                          key={faq.id}
+                          className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-stone-900">
+                              {faq.question}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openFaqEditor(index)}
+                                className="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-700"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSettingsForm((current) => ({
+                                    ...current,
+                                    faqs: current.faqs.filter(
+                                      (_, currentIndex) => currentIndex !== index
+                                    ),
+                                  }))
+                                }
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-3 text-sm leading-6 text-stone-600">{faq.answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardShell>
+                </div>
+
                 <div className="flex justify-end">
                   <button
                     type="button"
@@ -2839,6 +3091,33 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                     setWorkForm((current) => ({
                       ...current,
                       planFiles: [...current.planFiles, ...urls],
+                    }));
+                  }
+                }}
+              />
+
+              <MediaField
+                title="Brochure o ficha"
+                description="Sube una ficha PDF o una imagen resumen para usarla en la vista publica."
+                items={workForm.brochureFile ? [workForm.brochureFile] : []}
+                accept=".pdf,image/*"
+                multiple={false}
+                onRemove={() =>
+                  setWorkForm((current) => ({
+                    ...current,
+                    brochureFile: "",
+                  }))
+                }
+                onUpload={async (files) => {
+                  const [url] = await uploadMany(
+                    files,
+                    "plans",
+                    workForm.slug || workForm.title || "obra"
+                  );
+                  if (url) {
+                    setWorkForm((current) => ({
+                      ...current,
+                      brochureFile: url,
                     }));
                   }
                 }}
@@ -3196,6 +3475,33 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                 }}
               />
 
+              <MediaField
+                title="Brochure o ficha"
+                description="Sube una ficha PDF o una imagen comercial del edificio."
+                items={buildingForm.brochureFile ? [buildingForm.brochureFile] : []}
+                accept=".pdf,image/*"
+                multiple={false}
+                onRemove={() =>
+                  setBuildingForm((current) => ({
+                    ...current,
+                    brochureFile: "",
+                  }))
+                }
+                onUpload={async (files) => {
+                  const [url] = await uploadMany(
+                    files,
+                    "plans",
+                    buildingForm.slug || buildingForm.title || "edificio"
+                  );
+                  if (url) {
+                    setBuildingForm((current) => ({
+                      ...current,
+                      brochureFile: url,
+                    }));
+                  }
+                }}
+              />
+
               <div className="flex flex-wrap justify-between gap-3 border-t border-[#e6d7c2] pt-4">
                 {buildingForm.id && (
                   <button
@@ -3430,6 +3736,132 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
             >
               <Save className="h-4 w-4" />
               Guardar sucursal
+            </button>
+          </div>
+        </div>
+      </EditorModal>
+
+      <EditorModal
+        open={testimonialModalOpen}
+        title={editingTestimonialIndex === null ? "Nuevo testimonio" : "Editar testimonio"}
+        description="Edita nombre, cargo, empresa y comentario para mostrarlo en la landing."
+        onClose={() => setTestimonialModalOpen(false)}
+      >
+        <div className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <InputField
+              label="Nombre"
+              value={testimonialForm.name}
+              onChange={(value) =>
+                setTestimonialForm((current) => ({ ...current, name: value }))
+              }
+            />
+            <InputField
+              label="Cargo o rol"
+              value={testimonialForm.role}
+              onChange={(value) =>
+                setTestimonialForm((current) => ({ ...current, role: value }))
+              }
+            />
+            <InputField
+              label="Empresa o cliente"
+              value={testimonialForm.company ?? ""}
+              onChange={(value) =>
+                setTestimonialForm((current) => ({ ...current, company: value }))
+              }
+            />
+          </div>
+          <TextareaField
+            label="Comentario"
+            value={testimonialForm.quote}
+            onChange={(value) =>
+              setTestimonialForm((current) => ({ ...current, quote: value }))
+            }
+            rows={5}
+          />
+
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[#e6d7c2] pt-4">
+            <button
+              type="button"
+              onClick={() => setTestimonialModalOpen(false)}
+              className="inline-flex h-11 items-center rounded-full border border-stone-200 bg-white px-4 text-sm text-stone-700"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsForm((current) => ({
+                  ...current,
+                  testimonials:
+                    editingTestimonialIndex === null
+                      ? [...current.testimonials, testimonialForm]
+                      : current.testimonials.map((item, index) =>
+                          index === editingTestimonialIndex ? testimonialForm : item
+                        ),
+                }));
+                setTestimonialModalOpen(false);
+              }}
+              disabled={
+                !testimonialForm.name.trim() ||
+                !testimonialForm.role.trim() ||
+                !testimonialForm.quote.trim()
+              }
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              Guardar testimonio
+            </button>
+          </div>
+        </div>
+      </EditorModal>
+
+      <EditorModal
+        open={faqModalOpen}
+        title={editingFaqIndex === null ? "Nueva pregunta" : "Editar pregunta"}
+        description="Agrega una pregunta frecuente y su respuesta para la landing."
+        onClose={() => setFaqModalOpen(false)}
+      >
+        <div className="grid gap-4">
+          <InputField
+            label="Pregunta"
+            value={faqForm.question}
+            onChange={(value) => setFaqForm((current) => ({ ...current, question: value }))}
+          />
+          <TextareaField
+            label="Respuesta"
+            value={faqForm.answer}
+            onChange={(value) => setFaqForm((current) => ({ ...current, answer: value }))}
+            rows={5}
+          />
+
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[#e6d7c2] pt-4">
+            <button
+              type="button"
+              onClick={() => setFaqModalOpen(false)}
+              className="inline-flex h-11 items-center rounded-full border border-stone-200 bg-white px-4 text-sm text-stone-700"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsForm((current) => ({
+                  ...current,
+                  faqs:
+                    editingFaqIndex === null
+                      ? [...current.faqs, faqForm]
+                      : current.faqs.map((item, index) =>
+                          index === editingFaqIndex ? faqForm : item
+                        ),
+                }));
+                setFaqModalOpen(false);
+              }}
+              disabled={!faqForm.question.trim() || !faqForm.answer.trim()}
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              Guardar pregunta
             </button>
           </div>
         </div>

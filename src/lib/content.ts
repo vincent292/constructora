@@ -1,11 +1,13 @@
 import { fallbackContent } from "../data/fallback-content";
 import type {
   BuildingProject,
+  FaqItem,
   LeadPayload,
   ServiceItem,
   SiteContent,
   SiteSettings,
   TeamMember,
+  TestimonialItem,
   WorkProject,
 } from "../types/cms";
 import { isSupabaseConfigured, supabaseInsert, supabaseSelect } from "./supabase";
@@ -26,6 +28,7 @@ type WorkRow = {
   hero_image: string;
   gallery: string[] | null;
   plan_files: string[] | null;
+  brochure_file: string | null;
   metrics: WorkProject["metrics"] | null;
   map_embed_url: string | null;
   updates:
@@ -52,6 +55,8 @@ type SettingsRow = {
   tagline: string;
   location: string;
   contact: SiteSettings["contact"] | null;
+  testimonials: SiteSettings["testimonials"] | null;
+  faqs: SiteSettings["faqs"] | null;
 };
 
 type BuildingRow = {
@@ -70,6 +75,7 @@ type BuildingRow = {
   hero_image: string;
   gallery: string[] | null;
   plan_files: string[] | null;
+  brochure_file: string | null;
   metrics: BuildingProject["metrics"] | null;
   amenities: string[] | null;
   map_embed_url: string | null;
@@ -111,6 +117,14 @@ function normalizeSettings(row?: SettingsRow): SiteSettings {
           ? nextContact.branches
           : fallbackBranches,
     },
+    testimonials:
+      row?.testimonials && row.testimonials.length > 0
+        ? row.testimonials
+        : fallbackContent.testimonials,
+    faqs:
+      row?.faqs && row.faqs.length > 0
+        ? row.faqs
+        : fallbackContent.faqs,
   };
 }
 
@@ -131,6 +145,7 @@ function mapWork(row: WorkRow): WorkProject {
     heroImage: row.hero_image,
     gallery: row.gallery ?? [],
     planFiles: row.plan_files ?? [],
+    brochureFile: row.brochure_file ?? undefined,
     metrics: row.metrics ?? [],
     mapEmbedUrl: row.map_embed_url ?? undefined,
     updates:
@@ -163,6 +178,7 @@ function mapBuilding(row: BuildingRow): BuildingProject {
     heroImage: row.hero_image,
     gallery: row.gallery ?? [],
     planFiles: row.plan_files ?? [],
+    brochureFile: row.brochure_file ?? undefined,
     metrics: row.metrics ?? [],
     amenities: row.amenities ?? [],
     mapEmbedUrl: row.map_embed_url ?? undefined,
@@ -197,12 +213,12 @@ export async function loadSiteContent(): Promise<SiteContent> {
       }),
       supabaseSelect<WorkRow[]>("works", {
         select:
-          "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,metrics,map_embed_url,updates:work_updates(id,title,date,summary,performed_by,photos,is_deleted)",
+          "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,brochure_file,metrics,map_embed_url,updates:work_updates(id,title,date,summary,performed_by,photos,is_deleted)",
         order: "created_at.desc",
       }),
       supabaseSelect<BuildingRow[]>("buildings", {
         select:
-          "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,metrics,amenities,map_embed_url,units:building_units(id,title,bedrooms,bathrooms,area,floor_label,price,is_available)",
+          "id,slug,title,category,location,year,area,status,client_name,owner_name,summary,description,hero_image,gallery,plan_files,brochure_file,metrics,amenities,map_embed_url,units:building_units(id,title,bedrooms,bathrooms,area,floor_label,price,is_available)",
         order: "created_at.desc",
       }),
       supabaseSelect<TeamMember[]>("team_members", {
@@ -211,14 +227,18 @@ export async function loadSiteContent(): Promise<SiteContent> {
       }),
     ]);
 
+    const normalizedSettings = normalizeSettings(settingsRows[0]);
+
     return {
-      settings: normalizeSettings(settingsRows[0]),
+      settings: normalizedSettings,
       services: services.length ? services : fallbackContent.services,
       works: works.length ? works.map(mapWork) : fallbackContent.works,
       buildings: buildings.length
         ? buildings.map(mapBuilding)
         : fallbackContent.buildings,
       team: team.length ? team : fallbackContent.team,
+      testimonials: normalizedSettings.testimonials as TestimonialItem[],
+      faqs: normalizedSettings.faqs as FaqItem[],
     };
   } catch (error) {
     console.warn("No se pudo cargar Supabase. Se usa contenido local.", error);

@@ -11,16 +11,19 @@ import {
   MessageSquare,
   Phone,
   ShieldCheck,
+  Search,
   X,
 } from "lucide-react";
 import { fallbackContent } from "./data/fallback-content";
 import { createLead, loadSiteContent } from "./lib/content";
 import type {
   BuildingProject,
+  FaqItem,
   LeadPayload,
   ServiceItem,
   SiteContent,
   TeamMember,
+  TestimonialItem,
   WorkProject,
 } from "./types/cms";
 
@@ -442,6 +445,107 @@ function TeamCard({ member }: { member: TeamMember }) {
   );
 }
 
+function FilterPill({
+  active,
+  children,
+  onClick,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex h-10 items-center rounded-full border px-4 text-sm transition ${
+        active
+          ? "border-[#FFDC63]/35 bg-[#FFDC63] text-black"
+          : "border-white/10 bg-white/[0.05] text-stone-300 hover:border-white/20 hover:text-white"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ProjectSearchField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <label className="relative w-full sm:max-w-sm">
+      <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="h-11 w-full rounded-full border border-white/10 bg-white/[0.05] pl-10 pr-4 text-sm text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
+      />
+    </label>
+  );
+}
+
+function TestimonialCard({ item }: { item: TestimonialItem }) {
+  return (
+    <div className="gsap-reveal rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20 backdrop-blur-xl sm:rounded-[2rem] sm:p-6">
+      <p className="text-base leading-7 text-stone-200 sm:text-lg sm:leading-8">
+        "{item.quote}"
+      </p>
+      <div className="mt-5 border-t border-white/10 pt-4">
+        <p className="font-semibold text-white">{item.name}</p>
+        <p className="mt-1 text-sm text-stone-400">
+          {item.role}
+          {item.company ? ` · ${item.company}` : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function FaqCard({
+  item,
+  open,
+  onToggle,
+}: {
+  item: FaqItem;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] shadow-xl shadow-black/15 backdrop-blur-xl">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left sm:px-6 sm:py-5"
+      >
+        <span className="text-base font-semibold text-white sm:text-lg">{item.question}</span>
+        <span
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border transition ${
+            open
+              ? "border-[#FFDC63]/35 bg-[#FFDC63] text-black"
+              : "border-white/10 bg-white/[0.05] text-stone-300"
+          }`}
+        >
+          {open ? "−" : "+"}
+        </span>
+      </button>
+      {open ? (
+        <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+          <p className="text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">
+            {item.answer}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function QuoteFloatingButton({
   onClick,
   hidden = false,
@@ -784,6 +888,21 @@ function DetailViewScreen({
 
   const item = detail.item;
   const isBuilding = detail.kind === "building";
+  const [unitFilter, setUnitFilter] = useState<"all" | "available" | "2h" | "3h">("all");
+
+  useEffect(() => {
+    setUnitFilter("all");
+  }, [detail.kind, item.slug]);
+
+  const visibleUnits =
+    detail.kind === "building"
+      ? detail.item.units.filter((unit) => {
+          if (unitFilter === "available") return unit.isAvailable;
+          if (unitFilter === "2h") return unit.bedrooms <= 2;
+          if (unitFilter === "3h") return unit.bedrooms >= 3;
+          return true;
+        })
+      : [];
 
   return (
     <motion.div
@@ -866,6 +985,19 @@ function DetailViewScreen({
               <StatusPill>{item.clientName}</StatusPill>
               <StatusPill>{item.ownerName}</StatusPill>
             </div>
+
+            {item.brochureFile && (
+              <div className="mt-5 sm:mt-6">
+                <a
+                  href={item.brochureFile}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 items-center rounded-full border border-[#FFDC63]/30 bg-[#FFDC63]/12 px-4 py-2 text-sm font-medium text-[#FFDC63] transition hover:bg-[#FFDC63]/18"
+                >
+                  Ver ficha del proyecto
+                </a>
+              </div>
+            )}
 
             <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
               {item.metrics.map((metric) => (
@@ -1028,9 +1160,21 @@ function DetailViewScreen({
               ))}
 
               <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:rounded-[1.6rem] sm:p-5">
-                <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">
-                  Planos disponibles
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">
+                    Planos disponibles
+                  </p>
+                  {detail.item.brochureFile && (
+                    <a
+                      href={detail.item.brochureFile}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-[#FFDC63]/30 bg-[#FFDC63]/12 px-4 py-2 text-sm font-medium text-[#FFDC63]"
+                    >
+                      Abrir ficha
+                    </a>
+                  )}
+                </div>
                 <div className="mt-4 flex flex-wrap gap-3">
                   {detail.item.planFiles.map((plan) => (
                     <a
@@ -1062,8 +1206,26 @@ function DetailViewScreen({
               }
             />
 
+            <div className="mt-5 flex flex-wrap gap-2.5 sm:mt-6">
+              <FilterPill active={unitFilter === "all"} onClick={() => setUnitFilter("all")}>
+                Todas
+              </FilterPill>
+              <FilterPill
+                active={unitFilter === "available"}
+                onClick={() => setUnitFilter("available")}
+              >
+                Disponibles
+              </FilterPill>
+              <FilterPill active={unitFilter === "2h"} onClick={() => setUnitFilter("2h")}>
+                Hasta 2H
+              </FilterPill>
+              <FilterPill active={unitFilter === "3h"} onClick={() => setUnitFilter("3h")}>
+                3H o mas
+              </FilterPill>
+            </div>
+
             <div className="mt-6 grid gap-4 md:mt-10 md:grid-cols-2 xl:grid-cols-3">
-              {detail.item.units.map((unit) => (
+              {visibleUnits.map((unit) => (
                 <div
                   key={unit.id}
                   className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:rounded-[1.8rem] sm:p-5"
@@ -1105,11 +1267,29 @@ function DetailViewScreen({
               ))}
             </div>
 
+            {visibleUnits.length === 0 ? (
+              <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] px-4 py-8 text-center text-sm text-stone-400 backdrop-blur-xl">
+                No hay unidades para este filtro en este momento.
+              </div>
+            ) : null}
+
             {detail.item.planFiles.length > 0 && (
               <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:mt-8 sm:rounded-[1.8rem] sm:p-5">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63]">
-                  Planos disponibles
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63]">
+                    Planos disponibles
+                  </p>
+                  {detail.item.brochureFile && (
+                    <a
+                      href={detail.item.brochureFile}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border border-[#FFDC63]/30 bg-[#FFDC63]/12 px-4 py-2 text-sm font-medium text-[#FFDC63]"
+                    >
+                      Abrir ficha
+                    </a>
+                  )}
+                </div>
                 <div className="mt-4 flex flex-wrap gap-3">
                   {detail.item.planFiles.map((plan) => (
                     <a
@@ -1123,6 +1303,22 @@ function DetailViewScreen({
                     </a>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {detail.item.planFiles.length === 0 && detail.item.brochureFile && (
+              <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:mt-8 sm:rounded-[1.8rem] sm:p-5">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63]">
+                  Ficha del edificio
+                </p>
+                <a
+                  href={detail.item.brochureFile}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex rounded-full border border-[#FFDC63]/30 bg-[#FFDC63]/12 px-4 py-2 text-sm font-medium text-[#FFDC63]"
+                >
+                  Abrir ficha
+                </a>
               </div>
             )}
           </div>
@@ -1155,6 +1351,11 @@ export default function App() {
   const [isHeaderCompact, setIsHeaderCompact] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingContent, setLoadingContent] = useState(true);
+  const [workSearch, setWorkSearch] = useState("");
+  const [workStatusFilter, setWorkStatusFilter] = useState<"all" | "planificacion" | "en_progreso" | "finalizado">("all");
+  const [buildingSearch, setBuildingSearch] = useState("");
+  const [buildingFilter, setBuildingFilter] = useState<"all" | "available" | "planificacion" | "en_progreso" | "finalizado">("all");
+  const [openFaqId, setOpenFaqId] = useState<string | null>(fallbackContent.faqs[0]?.id ?? null);
   const [leadContext, setLeadContext] = useState<{
     interestType: LeadPayload["interestType"];
     referenceSlug?: string;
@@ -1206,6 +1407,19 @@ export default function App() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!content.faqs.length) {
+      setOpenFaqId(null);
+      return;
+    }
+
+    setOpenFaqId((current) =>
+      current && content.faqs.some((item) => item.id === current)
+        ? current
+        : content.faqs[0].id
+    );
+  }, [content.faqs]);
 
   useEffect(() => {
     let lenisInstance: LenisInstance | null = null;
@@ -1519,6 +1733,32 @@ export default function App() {
         { label: "Contacto", href: "#contacto" },
       ];
 
+  const visibleWorks = content.works.filter((item) => {
+    const matchesSearch = `${item.title} ${item.location} ${item.category}`
+      .toLowerCase()
+      .includes(workSearch.toLowerCase());
+    const matchesStatus =
+      workStatusFilter === "all" || item.status === workStatusFilter;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  const visibleBuildings = content.buildings.filter((item) => {
+    const matchesSearch = `${item.title} ${item.location} ${item.category}`
+      .toLowerCase()
+      .includes(buildingSearch.toLowerCase());
+
+    if (buildingFilter === "all") {
+      return matchesSearch;
+    }
+
+    if (buildingFilter === "available") {
+      return matchesSearch && item.units.some((unit) => unit.isAvailable);
+    }
+
+    return matchesSearch && item.status === buildingFilter;
+  });
+
   const submitLead = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -1782,8 +2022,42 @@ export default function App() {
                     </Button>
                   </div>
 
+                  <div className="mb-6 flex flex-col gap-3 sm:mb-8">
+                    <ProjectSearchField
+                      value={workSearch}
+                      onChange={setWorkSearch}
+                      placeholder="Buscar obra por nombre, ubicacion o categoria"
+                    />
+                    <div className="flex flex-wrap gap-2.5">
+                      <FilterPill
+                        active={workStatusFilter === "all"}
+                        onClick={() => setWorkStatusFilter("all")}
+                      >
+                        Todas
+                      </FilterPill>
+                      <FilterPill
+                        active={workStatusFilter === "en_progreso"}
+                        onClick={() => setWorkStatusFilter("en_progreso")}
+                      >
+                        En progreso
+                      </FilterPill>
+                      <FilterPill
+                        active={workStatusFilter === "finalizado"}
+                        onClick={() => setWorkStatusFilter("finalizado")}
+                      >
+                        Finalizadas
+                      </FilterPill>
+                      <FilterPill
+                        active={workStatusFilter === "planificacion"}
+                        onClick={() => setWorkStatusFilter("planificacion")}
+                      >
+                        Planificacion
+                      </FilterPill>
+                    </div>
+                  </div>
+
                   <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
-                    {content.works.map((item) => (
+                    {visibleWorks.map((item) => (
                       <CatalogCard
                         key={item.id}
                         title={item.title}
@@ -1795,6 +2069,12 @@ export default function App() {
                       />
                     ))}
                   </div>
+
+                  {visibleWorks.length === 0 ? (
+                    <div className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.04] px-4 py-8 text-center text-sm text-stone-400 backdrop-blur-xl">
+                      No encontramos obras con ese filtro.
+                    </div>
+                  ) : null}
                 </div>
               </section>
 
@@ -1846,8 +2126,42 @@ export default function App() {
                     </Button>
                   </div>
 
+                  <div className="mb-6 flex flex-col gap-3 sm:mb-8">
+                    <ProjectSearchField
+                      value={buildingSearch}
+                      onChange={setBuildingSearch}
+                      placeholder="Buscar edificio por nombre, ubicacion o categoria"
+                    />
+                    <div className="flex flex-wrap gap-2.5">
+                      <FilterPill
+                        active={buildingFilter === "all"}
+                        onClick={() => setBuildingFilter("all")}
+                      >
+                        Todos
+                      </FilterPill>
+                      <FilterPill
+                        active={buildingFilter === "available"}
+                        onClick={() => setBuildingFilter("available")}
+                      >
+                        Con unidades
+                      </FilterPill>
+                      <FilterPill
+                        active={buildingFilter === "en_progreso"}
+                        onClick={() => setBuildingFilter("en_progreso")}
+                      >
+                        En progreso
+                      </FilterPill>
+                      <FilterPill
+                        active={buildingFilter === "finalizado"}
+                        onClick={() => setBuildingFilter("finalizado")}
+                      >
+                        Finalizados
+                      </FilterPill>
+                    </div>
+                  </div>
+
                   <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
-                    {content.buildings.map((item) => (
+                    {visibleBuildings.map((item) => (
                       <CatalogCard
                         key={item.id}
                         title={item.title}
@@ -1859,6 +2173,12 @@ export default function App() {
                       />
                     ))}
                   </div>
+
+                  {visibleBuildings.length === 0 ? (
+                    <div className="mt-4 rounded-[1.6rem] border border-white/10 bg-white/[0.04] px-4 py-8 text-center text-sm text-stone-400 backdrop-blur-xl">
+                      No encontramos edificios con ese filtro.
+                    </div>
+                  ) : null}
                 </div>
               </section>
 
@@ -1878,6 +2198,27 @@ export default function App() {
                   <div className="mt-8 grid gap-4 sm:mt-12 sm:gap-5 lg:grid-cols-3">
                     {content.team.map((member) => (
                       <TeamCard key={member.id} member={member} />
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <section id="testimonios" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+                <div className="mx-auto max-w-7xl">
+                  <SectionHeading
+                    eyebrow="Testimonios"
+                    title="Confianza construida en cada proyecto."
+                    description={
+                      <ResponsiveCopy
+                        mobile="Clientes y desarrolladores que valoraron orden, seguimiento y ejecucion."
+                        desktop="Clientes y desarrolladores que valoraron el orden del proceso, la comunicacion y la ejecucion de cada etapa."
+                      />
+                    }
+                  />
+
+                  <div className="mt-8 grid gap-4 lg:grid-cols-3">
+                    {content.testimonials.map((item) => (
+                      <TestimonialCard key={item.id} item={item} />
                     ))}
                   </div>
                 </div>
@@ -1913,6 +2254,36 @@ export default function App() {
                           <p className="mt-1.5 text-sm leading-6 text-stone-400 sm:mt-2 sm:text-base sm:leading-7">{step[2]}</p>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <section id="faq" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+                <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:gap-10">
+                  <div>
+                    <SectionHeading
+                      eyebrow="Preguntas frecuentes"
+                      title="Respuestas claras antes de iniciar."
+                      description={
+                        <ResponsiveCopy
+                          mobile="Resolvemos dudas comunes sobre cotizacion, seguimiento y desarrollo."
+                          desktop="Resolvemos dudas comunes sobre cotizacion, seguimiento de obra, edificios y coordinacion general del proyecto."
+                        />
+                      }
+                    />
+                  </div>
+
+                  <div className="grid gap-3">
+                    {content.faqs.map((item) => (
+                      <FaqCard
+                        key={item.id}
+                        item={item}
+                        open={openFaqId === item.id}
+                        onToggle={() =>
+                          setOpenFaqId((current) => (current === item.id ? null : item.id))
+                        }
+                      />
                     ))}
                   </div>
                 </div>

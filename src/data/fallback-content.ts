@@ -1,9 +1,11 @@
 import type {
   BuildingProject,
+  FaqItem,
   ServiceItem,
   SiteContent,
   SiteSettings,
   TeamMember,
+  TestimonialItem,
   WorkProject,
 } from "../types/cms";
 
@@ -38,6 +40,8 @@ const settings: SiteSettings = {
       },
     ],
   },
+  testimonials: [],
+  faqs: [],
 };
 
 const services: ServiceItem[] = [
@@ -260,10 +264,70 @@ const team: TeamMember[] = [
   },
 ];
 
+const testimonials: TestimonialItem[] = [
+  {
+    id: "testimonial-1",
+    name: "Carla Camacho",
+    role: "Cliente residencial",
+    company: "Familia Camacho",
+    quote:
+      "Valoramos mucho el orden del proceso, la claridad en los avances y la forma en que el equipo resolvio detalles durante toda la obra.",
+  },
+  {
+    id: "testimonial-2",
+    name: "Jorge Nova",
+    role: "Director comercial",
+    company: "Nova Group",
+    quote:
+      "La ejecucion fue seria y bien coordinada. Tuvimos seguimiento claro, buena comunicacion y una entrega consistente con lo proyectado.",
+  },
+  {
+    id: "testimonial-3",
+    name: "Daniela Ortega",
+    role: "Propietaria",
+    company: "Villa Jardin Sur",
+    quote:
+      "Nos dio confianza ver planos, decisiones y avances con una presentacion ordenada. Se noto experiencia y criterio constructivo.",
+  },
+];
+
+const faqs: FaqItem[] = [
+  {
+    id: "faq-1",
+    question: "Que tipo de proyectos desarrolla Mondoza?",
+    answer:
+      "Trabajamos obras residenciales, comerciales, edificios y ampliaciones con seguimiento tecnico, coordinacion en obra y control de avances.",
+  },
+  {
+    id: "faq-2",
+    question: "Pueden cotizar una obra desde planos iniciales?",
+    answer:
+      "Si. Podemos revisar planos preliminares, programa, ubicacion y alcance para orientar una cotizacion inicial o una etapa de presupuesto mas precisa.",
+  },
+  {
+    id: "faq-3",
+    question: "Como se realiza el seguimiento de una obra?",
+    answer:
+      "El seguimiento se organiza por hitos, avances, registro fotografico, responsables y comunicacion constante segun el tipo de proyecto.",
+  },
+  {
+    id: "faq-4",
+    question: "Tambien manejan edificios con unidades disponibles?",
+    answer:
+      "Si. Podemos mostrar tipologias, disponibilidad, amenidades, planos y datos clave de cada unidad dentro del desarrollo.",
+  },
+];
+
 export const fallbackContent: SiteContent = {
-  settings,
+  settings: {
+    ...settings,
+    testimonials,
+    faqs,
+  },
   services,
   works,
   buildings,
   team,
+  testimonials,
+  faqs,
 };
