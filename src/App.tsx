@@ -246,7 +246,7 @@ function HeroSection({
   onOpenContact: () => void;
 }) {
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div className="relative min-h-[100svh] overflow-hidden sm:min-h-screen">
       <img
         src={heroImage}
         alt={companyName}
@@ -256,11 +256,11 @@ function HeroSection({
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,7,5,0.14)_0%,rgba(9,7,5,0.3)_28%,rgba(9,7,5,0.64)_68%,rgba(9,7,5,0.9)_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_24%,rgba(255,255,255,0.16),transparent_24%),radial-gradient(circle_at_84%_68%,rgba(255,220,99,0.22),transparent_22%)]" />
 
-      <div className="absolute left-4 right-4 top-24 max-w-sm rounded-[1.5rem] border border-white/15 bg-black/20 px-4 py-3 text-sm leading-6 text-stone-100 backdrop-blur-xl sm:left-8 sm:px-5 sm:py-4 md:left-12 md:top-28">
+      <div className="absolute left-4 right-4 top-24 max-w-xs rounded-[1.35rem] border border-white/15 bg-black/20 px-4 py-2.5 text-xs leading-5 text-stone-100 backdrop-blur-xl sm:left-8 sm:max-w-sm sm:px-5 sm:py-4 sm:text-sm sm:leading-6 md:left-12 md:top-28">
         {tagline}
       </div>
 
-      <div className="absolute bottom-36 left-4 right-4 sm:bottom-32 sm:left-8 sm:right-8 md:bottom-20 md:left-12 md:max-w-5xl">
+      <div className="absolute bottom-32 left-4 right-4 sm:bottom-32 sm:left-8 sm:right-8 md:bottom-20 md:left-12 md:max-w-5xl">
         <p className="text-[11px] uppercase tracking-[0.34em] text-[#FFDC63] sm:text-sm">
           {heroEyebrow}
         </p>
@@ -270,11 +270,11 @@ function HeroSection({
             {heroAccent}
           </span>
         </h1>
-        <p className="mt-5 max-w-2xl text-sm leading-7 text-stone-200 sm:text-base sm:leading-8 md:text-lg">
+        <p className="mt-4 max-w-xl text-[13px] leading-6 text-stone-200 sm:mt-5 sm:max-w-2xl sm:text-base sm:leading-8 md:text-lg">
           {heroDescription}
         </p>
 
-        <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-6 flex flex-col gap-2.5 sm:mt-7 sm:flex-row sm:gap-3">
           <Button className="w-full sm:w-auto" onClick={onOpenCatalog}>
             Ver catalogo
             <ArrowUpRight className="ml-2 h-4 w-4" />
@@ -289,18 +289,33 @@ function HeroSection({
         </div>
       </div>
 
-      <div className="absolute bottom-4 left-4 right-4 rounded-[1.8rem] border border-white/15 bg-black/30 p-4 backdrop-blur-2xl sm:left-auto sm:right-8 sm:bottom-8 sm:w-[360px] sm:p-6">
+      <div className="absolute bottom-4 left-4 right-4 rounded-[1.6rem] border border-white/15 bg-black/30 p-3.5 backdrop-blur-2xl sm:left-auto sm:right-8 sm:bottom-8 sm:w-[360px] sm:rounded-[1.8rem] sm:p-6">
         <p className="text-[11px] uppercase tracking-[0.26em] text-[#FFDC63]">
           Cobertura
         </p>
-        <h2 className="mt-3 text-2xl font-semibold text-white">
+        <h2 className="mt-2 text-xl font-semibold text-white sm:mt-3 sm:text-2xl">
           {location}
         </h2>
-        <p className="mt-2 text-sm leading-6 text-stone-300">
+        <p className="mt-2 hidden text-sm leading-6 text-stone-300 sm:block">
           Atendemos proyectos residenciales, comerciales y de edificacion con seguimiento tecnico y presencia de obra.
         </p>
       </div>
     </div>
+  );
+}
+
+function ResponsiveCopy({
+  mobile,
+  desktop,
+}: {
+  mobile: string;
+  desktop: string;
+}) {
+  return (
+    <>
+      <span className="sm:hidden">{mobile}</span>
+      <span className="hidden sm:inline">{desktop}</span>
+    </>
   );
 }
 
@@ -312,7 +327,7 @@ function SectionHeading({
 }: {
   eyebrow: string;
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   align?: "left" | "center";
 }) {
   return (
@@ -320,11 +335,13 @@ function SectionHeading({
       <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFDC63] sm:text-sm sm:tracking-[0.32em]">
         {eyebrow}
       </p>
-      <h2 className="mt-4 text-3xl font-semibold tracking-[-0.05em] sm:text-4xl md:text-6xl">
+      <h2 className="mt-3 text-[1.95rem] font-semibold leading-[1.02] tracking-[-0.05em] sm:mt-4 sm:text-4xl md:text-6xl">
         {title}
       </h2>
       {description && (
-        <p className="mt-5 max-w-2xl leading-7 text-stone-400">{description}</p>
+        <p className="mt-3 max-w-xl text-sm leading-6 text-stone-400 sm:mt-5 sm:max-w-2xl sm:text-base sm:leading-7">
+          {description}
+        </p>
       )}
     </div>
   );
@@ -354,7 +371,7 @@ function CatalogCard({
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
       whileHover={{ y: -8 }}
-      className="group relative h-[340px] overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 text-left shadow-xl shadow-black/20"
+      className="group relative h-[300px] overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/5 text-left shadow-xl shadow-black/20 sm:h-[340px] sm:rounded-[2rem]"
     >
       <img
         src={image}
@@ -372,11 +389,11 @@ function CatalogCard({
           <ArrowUpRight className="h-5 w-5" />
         </span>
       </div>
-      <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-6">
+      <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
         <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63] sm:text-sm sm:tracking-[0.28em]">
           {subtitle}
         </p>
-        <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
+        <h3 className="mt-2 text-xl font-semibold tracking-[-0.04em] sm:mt-3 sm:text-3xl">
           {title}
         </h3>
         <p className="mt-2 text-sm text-stone-300">{detail}</p>
@@ -390,32 +407,36 @@ function ServiceCard({ service }: { service: ServiceItem }) {
   const Icon = serviceIcons[Math.abs(service.id.length) % serviceIcons.length];
 
   return (
-    <div className="gsap-reveal rounded-[2rem] border border-white/10 bg-white/[0.045] p-6 text-stone-100 shadow-xl shadow-black/20 backdrop-blur-xl">
-      <div className="mb-8 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-[#FFDC63]/15 text-[#FFDC63]">
+    <div className="gsap-reveal rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-4 text-stone-100 shadow-xl shadow-black/20 backdrop-blur-xl sm:rounded-[2rem] sm:p-6">
+      <div className="mb-5 grid h-11 w-11 place-items-center rounded-2xl bg-[#FFDC63]/15 text-[#FFDC63] sm:mb-8 sm:h-[52px] sm:w-[52px]">
         <Icon className="h-6 w-6" />
       </div>
-      <h3 className="text-xl font-semibold">{service.title}</h3>
-      <p className="mt-4 leading-7 text-stone-400">{service.text}</p>
+      <h3 className="text-lg font-semibold sm:text-xl">{service.title}</h3>
+      <p className="mt-3 text-sm leading-6 text-stone-400 sm:mt-4 sm:text-base sm:leading-7">
+        {service.text}
+      </p>
     </div>
   );
 }
 
 function TeamCard({ member }: { member: TeamMember }) {
   return (
-    <div className="gsap-reveal overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] shadow-xl shadow-black/20 backdrop-blur-xl">
+    <div className="gsap-reveal overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/[0.045] shadow-xl shadow-black/20 backdrop-blur-xl sm:rounded-[2rem]">
       <img
         src={member.image}
         alt={member.name}
         loading="lazy"
         decoding="async"
-        className="h-72 w-full object-cover"
+        className="h-56 w-full object-cover sm:h-72"
       />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <p className="text-[11px] uppercase tracking-[0.24em] text-[#FFDC63]">
           {member.role}
         </p>
-        <h3 className="mt-3 text-2xl font-semibold">{member.name}</h3>
-        <p className="mt-4 leading-7 text-stone-400">{member.bio}</p>
+        <h3 className="mt-2 text-xl font-semibold sm:mt-3 sm:text-2xl">{member.name}</h3>
+        <p className="mt-3 line-clamp-3 text-sm leading-6 text-stone-400 sm:mt-4 sm:line-clamp-none sm:text-base sm:leading-7">
+          {member.bio}
+        </p>
       </div>
     </div>
   );
@@ -772,7 +793,7 @@ function DetailViewScreen({
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
     >
-      <section id="detalle-hero" className="relative min-h-screen overflow-hidden">
+      <section id="detalle-hero" className="relative min-h-[88svh] overflow-hidden sm:min-h-screen">
         <AnimatePresence mode="wait">
           <motion.img
             key={activeImage}
@@ -787,7 +808,7 @@ function DetailViewScreen({
         </AnimatePresence>
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.3),rgba(0,0,0,0.42)_30%,rgba(0,0,0,0.84)_100%)]" />
 
-        <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col justify-end px-5 pb-10 pt-32 md:px-8 md:pb-16">
+        <div className="relative z-10 mx-auto flex min-h-[88svh] max-w-7xl flex-col justify-end px-5 pb-8 pt-28 sm:min-h-screen sm:pb-10 md:px-8 md:pb-16">
           <button
             type="button"
             onClick={onBack}
@@ -804,10 +825,10 @@ function DetailViewScreen({
             <h1 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-white sm:text-5xl md:text-7xl lg:text-8xl">
               {item.title}
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-7 text-stone-200 sm:text-lg sm:leading-8 md:text-xl">
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-stone-200 sm:mt-5 sm:text-lg sm:leading-8 md:text-xl">
               {item.summary}
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap gap-2.5 sm:mt-7 sm:gap-3">
               <StatusPill tone="brand">{statusLabel(item.status)}</StatusPill>
               <StatusPill>{item.year}</StatusPill>
               <StatusPill>{item.area}</StatusPill>
@@ -820,42 +841,47 @@ function DetailViewScreen({
         </div>
       </section>
 
-      <section id="detalle-resumen" className="px-5 py-16 md:px-8 md:py-24">
-        <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+      <section id="detalle-resumen" className="px-5 py-10 md:px-8 md:py-24">
+        <div className="mx-auto grid max-w-7xl gap-7 lg:grid-cols-[0.9fr_1.1fr] lg:gap-10">
           <div>
             <SectionHeading
               eyebrow="Resumen"
               title="Informacion esencial del proyecto en una sola vista."
-              description="Reunimos ubicacion, estado, datos tecnicos, planos y material visual para presentar cada proyecto con claridad."
+              description={
+                <ResponsiveCopy
+                  mobile="Ubicacion, estado, datos clave y material visual."
+                  desktop="Reunimos ubicacion, estado, datos tecnicos, planos y material visual para presentar cada proyecto con claridad."
+                />
+              }
             />
           </div>
 
           <div>
-            <p className="text-base leading-7 text-stone-300 sm:text-lg sm:leading-8">
+            <p className="text-sm leading-6 text-stone-300 sm:text-lg sm:leading-8">
               {item.description}
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap gap-2.5 sm:mt-6 sm:gap-3">
               <StatusPill tone="brand">{statusLabel(item.status)}</StatusPill>
               <StatusPill>{item.clientName}</StatusPill>
               <StatusPill>{item.ownerName}</StatusPill>
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
               {item.metrics.map((metric) => (
                 <div
                   key={metric.label}
-                  className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl"
+                  className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:rounded-[1.6rem] sm:p-5"
                 >
                   <p className="text-xs uppercase tracking-[0.28em] text-stone-500">
                     {metric.label}
                   </p>
-                  <p className="mt-3 text-xl font-semibold text-stone-100">
+                  <p className="mt-2 text-lg font-semibold text-stone-100 sm:mt-3 sm:text-xl">
                     {metric.value}
                   </p>
                 </div>
               ))}
-              <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+              <div className="hidden rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl sm:block">
                 <p className="text-xs uppercase tracking-[0.28em] text-stone-500">
                   Cliente
                 </p>
@@ -863,7 +889,7 @@ function DetailViewScreen({
                   {item.clientName}
                 </p>
               </div>
-              <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+              <div className="hidden rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl sm:block">
                 <p className="text-xs uppercase tracking-[0.28em] text-stone-500">
                   Responsable
                 </p>
@@ -876,13 +902,18 @@ function DetailViewScreen({
         </div>
       </section>
 
-      <section id="detalle-galeria" className="px-5 pb-16 md:px-8 md:pb-24">
+      <section id="detalle-galeria" className="px-5 pb-10 md:px-8 md:pb-24">
         <div className="mx-auto max-w-7xl">
-          <div className="mb-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="mb-6 flex flex-col gap-4 md:mb-10 md:flex-row md:items-end md:justify-between md:gap-5">
             <SectionHeading
               eyebrow="Galeria"
               title="Elige la vista y subela al espacio principal."
-              description="Recorre el proyecto desde distintas vistas y revisa el material visual mas importante."
+              description={
+                <ResponsiveCopy
+                  mobile="Elige una vista y revisa el proyecto rapido."
+                  desktop="Recorre el proyecto desde distintas vistas y revisa el material visual mas importante."
+                />
+              }
             />
             <Button
               variant="outline"
@@ -909,18 +940,18 @@ function DetailViewScreen({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.99 }}
                   transition={{ duration: 0.35, ease: "easeOut" }}
-                  className="h-[300px] w-full object-cover sm:h-[480px] md:h-[620px]"
+                  className="h-[260px] w-full object-cover sm:h-[480px] md:h-[620px]"
                 />
               </AnimatePresence>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="flex gap-4 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-1">
               {item.gallery.map((image, index) => (
                 <button
                   key={`${item.slug}-thumb-${index}`}
                   type="button"
                   onClick={() => onImageSelect(image)}
-                  className={`group relative overflow-hidden rounded-[1.8rem] border text-left transition ${
+                  className={`group relative w-[210px] shrink-0 overflow-hidden rounded-[1.5rem] border text-left transition sm:w-auto sm:rounded-[1.8rem] ${
                     image === activeImage
                       ? "border-[#FFDC63]/45"
                       : "border-white/10 hover:border-white/20"
@@ -929,7 +960,7 @@ function DetailViewScreen({
                   <img
                     src={image}
                     alt={`${item.title} vista ${index + 1}`}
-                    className="h-40 w-full object-cover transition duration-500 group-hover:scale-105 md:h-[194px]"
+                    className="h-32 w-full object-cover transition duration-500 group-hover:scale-105 sm:h-40 md:h-[194px]"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
                   <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
@@ -950,13 +981,18 @@ function DetailViewScreen({
       </section>
 
       {detail.kind === "work" ? (
-        <section id="detalle-avances" className="px-5 pb-16 md:px-8 md:pb-24">
+        <section id="detalle-avances" className="px-5 pb-10 md:px-8 md:pb-24">
           <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.95fr_1.05fr]">
             <div>
               <SectionHeading
                 eyebrow="Avances y planos"
                 title="Seguimiento de obra y documentacion tecnica."
-                description="Consulta hitos de avance, registros fotograficos y planos vinculados a cada proyecto."
+                description={
+                  <ResponsiveCopy
+                    mobile="Consulta hitos, fotos y planos."
+                    desktop="Consulta hitos de avance, registros fotograficos y planos vinculados a cada proyecto."
+                  />
+                }
               />
             </div>
 
@@ -964,12 +1000,12 @@ function DetailViewScreen({
               {detail.item.updates.map((update) => (
                 <div
                   key={update.id}
-                  className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl"
+                  className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:rounded-[1.6rem] sm:p-5"
                 >
                   <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">
                     {update.date}
                   </p>
-                  <h3 className="mt-2 text-2xl font-semibold">{update.title}</h3>
+                  <h3 className="mt-2 text-xl font-semibold sm:text-2xl">{update.title}</h3>
                   {update.performedBy && (
                     <p className="mt-2 text-sm text-stone-400">
                       Realizado por {update.performedBy}
@@ -991,7 +1027,7 @@ function DetailViewScreen({
                 </div>
               ))}
 
-              <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+              <div className="rounded-[1.4rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:rounded-[1.6rem] sm:p-5">
                 <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">
                   Planos disponibles
                 </p>
@@ -1013,26 +1049,31 @@ function DetailViewScreen({
           </div>
         </section>
       ) : (
-        <section id="detalle-unidades" className="px-5 pb-16 md:px-8 md:pb-24">
+        <section id="detalle-unidades" className="px-5 pb-10 md:px-8 md:pb-24">
           <div className="mx-auto max-w-7xl">
             <SectionHeading
               eyebrow="Departamentos"
               title="Disponibilidad por unidad dentro del edificio."
-              description="Revisa tipologia, piso, area, precio y estado de cada unidad disponible dentro del proyecto."
+              description={
+                <ResponsiveCopy
+                  mobile="Revisa disponibilidad, precio y datos clave."
+                  desktop="Revisa tipologia, piso, area, precio y estado de cada unidad disponible dentro del proyecto."
+                />
+              }
             />
 
-            <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-6 grid gap-4 md:mt-10 md:grid-cols-2 xl:grid-cols-3">
               {detail.item.units.map((unit) => (
                 <div
                   key={unit.id}
-                  className="rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl"
+                  className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:rounded-[1.8rem] sm:p-5"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63]">
                         {unit.floorLabel}
                       </p>
-                      <h3 className="mt-3 text-2xl font-semibold">{unit.title}</h3>
+                      <h3 className="mt-2 text-xl font-semibold sm:mt-3 sm:text-2xl">{unit.title}</h3>
                     </div>
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-medium ${
@@ -1045,7 +1086,7 @@ function DetailViewScreen({
                     </span>
                   </div>
 
-                  <div className="mt-5 grid grid-cols-2 gap-3 text-sm text-stone-300">
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-stone-300 sm:mt-5">
                     <span>{unit.bedrooms} habitaciones</span>
                     <span>{unit.bathrooms} banos</span>
                     <span>{unit.area}</span>
@@ -1065,7 +1106,7 @@ function DetailViewScreen({
             </div>
 
             {detail.item.planFiles.length > 0 && (
-              <div className="mt-8 rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+              <div className="mt-6 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl sm:mt-8 sm:rounded-[1.8rem] sm:p-5">
                 <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63]">
                   Planos disponibles
                 </p>
@@ -1089,7 +1130,7 @@ function DetailViewScreen({
       )}
 
       {item.mapEmbedUrl && (
-        <section id="detalle-mapa" className="px-5 pb-16 md:px-8 md:pb-24">
+        <section id="detalle-mapa" className="px-5 pb-10 md:px-8 md:pb-24">
           <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] shadow-xl shadow-black/20 backdrop-blur-xl">
             <iframe
               title={`Mapa de ${item.title}`}
@@ -1719,13 +1760,18 @@ export default function App() {
                 />
               </section>
 
-              <section id="obras" className="gsap-zone px-5 py-20 sm:py-24 md:px-8 md:py-28">
+              <section id="obras" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
                 <div className="mx-auto max-w-7xl">
-                  <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                  <div className="mb-8 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between md:gap-6">
                     <SectionHeading
                       eyebrow="Obras"
                       title="Obras con criterio tecnico y ejecucion cuidada."
-                      description="Desarrollamos proyectos residenciales, comerciales e institucionales con orden, seguimiento y atencion al detalle."
+                      description={
+                        <ResponsiveCopy
+                          mobile="Proyectos residenciales y comerciales con orden y seguimiento."
+                          desktop="Desarrollamos proyectos residenciales, comerciales e institucionales con orden, seguimiento y atencion al detalle."
+                        />
+                      }
                     />
                     <Button
                       variant="outline"
@@ -1736,7 +1782,7 @@ export default function App() {
                     </Button>
                   </div>
 
-                  <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
                     {content.works.map((item) => (
                       <CatalogCard
                         key={item.id}
@@ -1752,20 +1798,25 @@ export default function App() {
                 </div>
               </section>
 
-              <section id="servicios" className="gsap-zone px-5 py-20 sm:py-24 md:px-8 md:py-28">
+              <section id="servicios" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
                 <div className="mx-auto max-w-7xl">
-                  <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                  <div className="mb-8 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between md:gap-6">
                     <SectionHeading
                       eyebrow="Servicios"
                       title="Servicios pensados para construir bien y acompanar mejor."
-                      description="Planificamos, ejecutamos y supervisamos proyectos con una mirada practica, tecnica y cercana al cliente."
+                      description={
+                        <ResponsiveCopy
+                          mobile="Planificacion, ejecucion y supervision con enfoque practico."
+                          desktop="Planificamos, ejecutamos y supervisamos proyectos con una mirada practica, tecnica y cercana al cliente."
+                        />
+                      }
                     />
                     <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-stone-300 backdrop-blur-xl">
                       {content.settings.location}
                     </div>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
                     {content.services.map((service) => (
                       <ServiceCard key={service.id} service={service} />
                     ))}
@@ -1773,13 +1824,18 @@ export default function App() {
                 </div>
               </section>
 
-              <section id="edificios" className="gsap-zone px-5 py-20 sm:py-24 md:px-8 md:py-28">
+              <section id="edificios" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
                 <div className="mx-auto max-w-7xl">
-                  <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                  <div className="mb-8 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between md:gap-6">
                     <SectionHeading
                       eyebrow="Edificios"
                       title="Edificios y desarrollos con lectura clara de cada unidad."
-                      description="Mostramos tipologias, disponibilidad y caracteristicas esenciales para que cada proyecto se entienda con claridad."
+                      description={
+                        <ResponsiveCopy
+                          mobile="Tipologias, disponibilidad y datos clave por unidad."
+                          desktop="Mostramos tipologias, disponibilidad y caracteristicas esenciales para que cada proyecto se entienda con claridad."
+                        />
+                      }
                     />
                     <Button
                       variant="outline"
@@ -1790,7 +1846,7 @@ export default function App() {
                     </Button>
                   </div>
 
-                  <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
                     {content.buildings.map((item) => (
                       <CatalogCard
                         key={item.id}
@@ -1806,15 +1862,20 @@ export default function App() {
                 </div>
               </section>
 
-              <section id="nosotros" className="gsap-zone px-5 py-20 sm:py-24 md:px-8 md:py-28">
+              <section id="nosotros" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
                 <div className="mx-auto max-w-7xl">
                   <SectionHeading
                     eyebrow="Nosotros"
                     title="Un equipo que combina direccion, obra y seguimiento tecnico."
-                    description="Acompanamos cada proyecto con responsables claros, presencia en campo y una comunicacion directa con el cliente."
+                    description={
+                      <ResponsiveCopy
+                        mobile="Responsables claros, presencia en obra y trato directo."
+                        desktop="Acompanamos cada proyecto con responsables claros, presencia en campo y una comunicacion directa con el cliente."
+                      />
+                    }
                   />
 
-                  <div className="mt-12 grid gap-5 lg:grid-cols-3">
+                  <div className="mt-8 grid gap-4 sm:mt-12 sm:gap-5 lg:grid-cols-3">
                     {content.team.map((member) => (
                       <TeamCard key={member.id} member={member} />
                     ))}
@@ -1822,29 +1883,34 @@ export default function App() {
                 </div>
               </section>
 
-              <section id="proceso" className="gsap-zone px-5 py-20 sm:py-24 md:px-8 md:py-28">
-                <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <section id="proceso" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+                <div className="mx-auto grid max-w-7xl gap-7 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-10">
                   <div>
                     <SectionHeading
                       eyebrow="Proceso"
                       title="Una forma de trabajo clara desde el inicio hasta la entrega."
-                      description="Cada proyecto se organiza con planificacion, ejecucion, supervision y cierre para sostener calidad y cumplimiento."
+                      description={
+                        <ResponsiveCopy
+                          mobile="Planificacion, ejecucion, supervision y entrega."
+                          desktop="Cada proyecto se organiza con planificacion, ejecucion, supervision y cierre para sostener calidad y cumplimiento."
+                        />
+                      }
                     />
                   </div>
 
-                  <div className="relative rounded-[2.2rem] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/30 backdrop-blur-xl sm:rounded-[3rem] md:p-8">
+                  <div className="relative rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:rounded-[3rem] sm:p-5 md:p-8">
                     <div className="absolute -inset-1 -z-10 rounded-[3.2rem] bg-gradient-to-br from-[#FFDC63]/20 via-transparent to-white/5 blur-xl" />
                     {processSteps.map((step) => (
                       <div
                         key={step[0]}
-                        className="gsap-reveal flex gap-4 border-b border-white/10 py-5 last:border-b-0 sm:gap-5 sm:py-6"
+                        className="gsap-reveal flex gap-3 border-b border-white/10 py-4 last:border-b-0 sm:gap-5 sm:py-6"
                       >
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-[#FFDC63]/25 bg-[#FFDC63]/10 text-sm font-semibold text-[#FFDC63] sm:h-12 sm:w-12">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-[#FFDC63]/25 bg-[#FFDC63]/10 text-sm font-semibold text-[#FFDC63] sm:h-12 sm:w-12">
                           {step[0]}
                         </span>
                         <div>
-                          <h3 className="text-xl font-semibold sm:text-2xl">{step[1]}</h3>
-                          <p className="mt-2 leading-7 text-stone-400">{step[2]}</p>
+                          <h3 className="text-lg font-semibold sm:text-2xl">{step[1]}</h3>
+                          <p className="mt-1.5 text-sm leading-6 text-stone-400 sm:mt-2 sm:text-base sm:leading-7">{step[2]}</p>
                         </div>
                       </div>
                     ))}
@@ -1852,9 +1918,9 @@ export default function App() {
                 </div>
               </section>
 
-              <section id="contacto" className="px-5 pb-10 pt-16 sm:pt-20 md:px-8">
+              <section id="contacto" className="px-5 pb-8 pt-12 sm:pt-20 md:px-8">
                 <div className="mx-auto max-w-7xl overflow-hidden rounded-[2.2rem] border border-white/10 bg-[#FFDC63] text-black shadow-2xl shadow-black/40 sm:rounded-[3rem]">
-                  <div className="grid gap-8 p-5 sm:p-8 md:p-12 lg:grid-cols-[1.05fr_.95fr] lg:p-16">
+                  <div className="grid gap-6 p-4 sm:p-8 md:p-12 lg:grid-cols-[1.05fr_.95fr] lg:gap-8 lg:p-16">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.28em] text-black/55 sm:text-sm sm:tracking-[0.32em]">
                         Contacto
@@ -1862,11 +1928,14 @@ export default function App() {
                       <h2 className="mt-4 max-w-3xl text-3xl font-semibold tracking-[-0.06em] sm:text-4xl md:text-6xl">
                         Conversemos sobre tu proyecto.
                       </h2>
-                      <p className="mt-6 max-w-2xl text-lg leading-8 text-black/70">
-                        Si estas planificando una obra, un edificio o una ampliacion, podemos ayudarte a revisar el alcance y preparar una cotizacion.
+                      <p className="mt-4 max-w-2xl text-sm leading-6 text-black/70 sm:mt-6 sm:text-lg sm:leading-8">
+                        <ResponsiveCopy
+                          mobile="Cuéntanos tu proyecto y te ayudamos a revisar alcance y cotizacion."
+                          desktop="Si estas planificando una obra, un edificio o una ampliacion, podemos ayudarte a revisar el alcance y preparar una cotizacion."
+                        />
                       </p>
 
-                      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                      <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
                         <div className="rounded-[1.5rem] bg-black/10 p-4">
                           <Phone className="h-5 w-5 text-black/70" />
                           <p className="mt-3 text-sm uppercase tracking-[0.22em] text-black/45">
@@ -1888,24 +1957,27 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="rounded-[1.8rem] bg-black/10 p-5 backdrop-blur-xl sm:p-6">
+                    <div className="rounded-[1.6rem] bg-black/10 p-4 backdrop-blur-xl sm:rounded-[1.8rem] sm:p-6">
                       <p className="text-sm uppercase tracking-[0.22em] text-black/45">
                         Sucursales
                       </p>
-                      <h3 className="mt-4 text-3xl font-semibold tracking-[-0.04em]">
+                      <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] sm:mt-4 sm:text-3xl">
                         Estamos presentes donde se mueve la obra
                       </h3>
-                      <p className="mt-4 leading-7 text-black/70">
-                        Puedes escribirnos o visitar la sucursal mas cercana para revisar tu proyecto con mayor detalle.
+                      <p className="mt-3 text-sm leading-6 text-black/70 sm:mt-4 sm:text-base sm:leading-7">
+                        <ResponsiveCopy
+                          mobile="Escribe o visita la sucursal mas cercana."
+                          desktop="Puedes escribirnos o visitar la sucursal mas cercana para revisar tu proyecto con mayor detalle."
+                        />
                       </p>
 
-                      <div className="mt-6 grid gap-4">
+                      <div className="mt-5 grid gap-3 sm:mt-6 sm:gap-4">
                         {content.settings.contact.branches.map((branch) => (
-                          <div key={branch.id} className="rounded-[1.4rem] bg-black/10 p-4">
+                          <div key={branch.id} className="rounded-[1.2rem] bg-black/10 p-3.5 sm:rounded-[1.4rem] sm:p-4">
                             <p className="text-sm uppercase tracking-[0.22em] text-black/45">
                               {branch.name}
                             </p>
-                            <p className="mt-2 text-lg font-semibold">{branch.address}</p>
+                            <p className="mt-2 text-base font-semibold sm:text-lg">{branch.address}</p>
                             <p className="mt-2 text-sm text-black/70">{branch.phone}</p>
                           </div>
                         ))}
@@ -1924,12 +1996,15 @@ export default function App() {
                 </div>
               </section>
 
-              <footer className="px-5 pb-10 pt-10 md:px-8">
-                <div className="mx-auto grid max-w-7xl gap-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl md:grid-cols-[1.2fr_0.8fr] md:p-8">
+              <footer className="px-5 pb-8 pt-8 md:px-8">
+                <div className="mx-auto grid max-w-7xl gap-6 rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl md:grid-cols-[1.2fr_0.8fr] md:gap-8 md:rounded-[2rem] md:p-8">
                   <div>
                     <BrandLockup className="justify-start" />
-                    <p className="mt-4 max-w-2xl text-lg leading-8 text-stone-300">
-                      {content.settings.tagline || content.settings.heroDescription}
+                    <p className="mt-4 max-w-2xl text-sm leading-6 text-stone-300 sm:text-lg sm:leading-8">
+                      <ResponsiveCopy
+                        mobile={content.settings.tagline || content.settings.location}
+                        desktop={content.settings.tagline || content.settings.heroDescription}
+                      />
                     </p>
                     <p className="mt-3 text-sm uppercase tracking-[0.24em] text-stone-500">
                       {content.settings.location}
@@ -1941,7 +2016,21 @@ export default function App() {
                       Login
                     </a>
                   </div>
-                  <div className="grid gap-4 text-sm text-stone-400">
+                  <div className="text-sm text-stone-400">
+                    <div className="grid gap-3 md:hidden">
+                      <p className="font-medium text-white">
+                        {content.settings.contact.branches.length} sucursales activas
+                      </p>
+                      <p className="inline-flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-[#FFDC63]" />
+                        {content.settings.contact.phone}
+                      </p>
+                      <p className="inline-flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-[#FFDC63]" />
+                        {content.settings.contact.email}
+                      </p>
+                    </div>
+                    <div className="hidden gap-4 md:grid">
                     {content.settings.contact.branches.map((branch) => (
                       <div key={branch.id} className="grid gap-2">
                         <p className="font-medium text-white">{branch.name}</p>
@@ -1959,6 +2048,7 @@ export default function App() {
                       <MessageSquare className="h-4 w-4 text-[#FFDC63]" />
                       {content.settings.contact.email}
                     </p>
+                    </div>
                   </div>
                 </div>
               </footer>
