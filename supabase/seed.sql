@@ -1,3 +1,92 @@
+delete from auth.identities
+where user_id = '514115e4-317c-4275-a216-c167a2bc4672'
+   or lower(identity_data ->> 'email') = 'ariasvincent292@gmail.com';
+
+delete from public.admin_profiles
+where user_id = '514115e4-317c-4275-a216-c167a2bc4672'
+   or lower(email) = 'ariasvincent292@gmail.com';
+
+delete from auth.users
+where id = '514115e4-317c-4275-a216-c167a2bc4672'
+   or lower(email) = 'ariasvincent292@gmail.com';
+
+insert into auth.users (
+  instance_id,
+  id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at,
+  confirmation_token,
+  email_change,
+  email_change_token_new,
+  recovery_token,
+  email_change_token_current,
+  reauthentication_token
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '514115e4-317c-4275-a216-c167a2bc4672',
+  'authenticated',
+  'authenticated',
+  'ariasvincent292@gmail.com',
+  '$2a$10$Pv5ZxzYlUkftfqr7osFZuOAdzAep3J6KqJo6ZRfSEicYVaaD1oY.y',
+  now(),
+  '{"provider":"email","providers":["email"]}'::jsonb,
+  '{"sub":"514115e4-317c-4275-a216-c167a2bc4672","email":"ariasvincent292@gmail.com","email_verified":true,"phone_verified":false}'::jsonb,
+  now(),
+  now(),
+  '',
+  '',
+  '',
+  '',
+  '',
+  ''
+);
+
+insert into auth.identities (
+  id,
+  user_id,
+  identity_data,
+  provider,
+  provider_id,
+  last_sign_in_at,
+  created_at,
+  updated_at
+)
+values (
+  'bab7a23b-2bb5-42b4-adf5-8003ce2c6ae9',
+  '514115e4-317c-4275-a216-c167a2bc4672',
+  '{"sub":"514115e4-317c-4275-a216-c167a2bc4672","email":"ariasvincent292@gmail.com","email_verified":false,"phone_verified":false}'::jsonb,
+  'email',
+  '514115e4-317c-4275-a216-c167a2bc4672',
+  now(),
+  now(),
+  now()
+);
+
+insert into public.admin_profiles (
+  user_id,
+  full_name,
+  email,
+  role
+)
+values (
+  '514115e4-317c-4275-a216-c167a2bc4672',
+  'Vincent Arias',
+  'ariasvincent292@gmail.com',
+  'admin'
+)
+on conflict (user_id) do update set
+  full_name = excluded.full_name,
+  email = excluded.email,
+  role = excluded.role;
+
 delete from public.site_settings;
 
 insert into public.site_settings (
@@ -11,6 +100,7 @@ insert into public.site_settings (
   tagline,
   location,
   contact,
+  process_steps,
   testimonials,
   faqs
 )
@@ -25,6 +115,7 @@ values (
   'Soluciones constructivas para vivienda, comercio y desarrollo inmobiliario.',
   'Cochabamba y Santa Cruz, Bolivia',
   '{"phone":"+591 70000000","whatsapp":"+591 70000000","email":"contacto@mondozaconstrucciones.com","address":"Cochabamba, Bolivia","branches":[{"id":"branch-1","name":"Sucursal Cochabamba","address":"Av. America Oeste, Cochabamba, Bolivia","phone":"+591 70000000"},{"id":"branch-2","name":"Sucursal Santa Cruz","address":"Equipetrol Norte, Santa Cruz, Bolivia","phone":"+591 71000000"}]}'::jsonb,
+  '[{"id":"process-1","order":"01","title":"Planificacion","text":"Estudiamos el alcance del proyecto, el presupuesto y la estrategia constructiva."},{"id":"process-2","order":"02","title":"Ejecucion","text":"Desarrollamos la obra con control tecnico, coordinacion en campo y seguimiento continuo."},{"id":"process-3","order":"03","title":"Supervision","text":"Cuidamos calidad, tiempos, avances y resolucion de detalles durante cada etapa."},{"id":"process-4","order":"04","title":"Entrega","text":"Cerramos con orden, documentacion y acompanamiento para la puesta en marcha del proyecto."}]'::jsonb,
   '[{"id":"testimonial-1","name":"Carla Camacho","role":"Cliente residencial","company":"Familia Camacho","quote":"Valoramos mucho el orden del proceso, la claridad en los avances y la forma en que el equipo resolvio detalles durante toda la obra."},{"id":"testimonial-2","name":"Jorge Nova","role":"Director comercial","company":"Nova Group","quote":"La ejecucion fue seria y bien coordinada. Tuvimos seguimiento claro, buena comunicacion y una entrega consistente con lo proyectado."},{"id":"testimonial-3","name":"Daniela Ortega","role":"Propietaria","company":"Villa Jardin Sur","quote":"Nos dio confianza ver planos, decisiones y avances con una presentacion ordenada. Se noto experiencia y criterio constructivo."}]'::jsonb,
   '[{"id":"faq-1","question":"Que tipo de proyectos desarrolla Mondoza?","answer":"Trabajamos obras residenciales, comerciales, edificios y ampliaciones con seguimiento tecnico, coordinacion en obra y control de avances."},{"id":"faq-2","question":"Pueden cotizar una obra desde planos iniciales?","answer":"Si. Podemos revisar planos preliminares, programa, ubicacion y alcance para orientar una cotizacion inicial o una etapa de presupuesto mas precisa."},{"id":"faq-3","question":"Como se realiza el seguimiento de una obra?","answer":"El seguimiento se organiza por hitos, avances, registro fotografico, responsables y comunicacion constante segun el tipo de proyecto."},{"id":"faq-4","question":"Tambien manejan edificios con unidades disponibles?","answer":"Si. Podemos mostrar tipologias, disponibilidad, amenidades, planos y datos clave de cada unidad dentro del desarrollo."}]'::jsonb
 );

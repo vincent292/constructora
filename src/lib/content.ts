@@ -10,6 +10,13 @@ import type {
   TestimonialItem,
   WorkProject,
 } from "../types/cms";
+import {
+  assertEmail,
+  sanitizeOptionalText,
+  sanitizePhone,
+  sanitizeSlug,
+  sanitizeText,
+} from "./security";
 import { isSupabaseConfigured, supabaseInsert, supabaseSelect } from "./supabase";
 
 type WorkRow = {
@@ -55,6 +62,7 @@ type SettingsRow = {
   tagline: string;
   location: string;
   contact: SiteSettings["contact"] | null;
+  process_steps: SiteSettings["processSteps"] | null;
   testimonials: SiteSettings["testimonials"] | null;
   faqs: SiteSettings["faqs"] | null;
 };
@@ -117,6 +125,10 @@ function normalizeSettings(row?: SettingsRow): SiteSettings {
           ? nextContact.branches
           : fallbackBranches,
     },
+    processSteps:
+      row?.process_steps && row.process_steps.length > 0
+        ? row.process_steps
+        : fallbackContent.settings.processSteps,
     testimonials:
       row?.testimonials && row.testimonials.length > 0
         ? row.testimonials
@@ -254,13 +266,19 @@ export async function createLead(payload: LeadPayload) {
   await supabaseInsert(
     "leads",
     {
-      full_name: payload.fullName,
-      phone: payload.phone,
-      email: payload.email,
-      message: payload.message,
+      full_name: sanitizeText(payload.fullName, "El nombre", { min: 3, max: 120 }),
+      phone: sanitizePhone(payload.phone),
+      email: assertEmail(payload.email),
+      message: sanitizeText(payload.message, "El mensaje", {
+        min: 10,
+        max: 2000,
+        preserveNewlines: true,
+      }),
       interest_type: payload.interestType,
-      reference_slug: payload.referenceSlug ?? null,
-      unit_label: payload.unitLabel ?? null,
+      reference_slug: payload.referenceSlug ? sanitizeSlug(payload.referenceSlug) : null,
+      unit_label: payload.unitLabel
+        ? sanitizeOptionalText(payload.unitLabel, "La unidad", 120)
+        : null,
       status: "nuevo",
     },
     { prefer: "return=minimal" }

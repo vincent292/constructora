@@ -9,6 +9,13 @@ export type ServiceItem = {
   text: string;
 };
 
+export type ProcessStep = {
+  id: string;
+  order: string;
+  title: string;
+  text: string;
+};
+
 export type DetailMetric = {
   label: string;
   value: string;
@@ -50,6 +57,7 @@ export type SiteSettings = {
   tagline: string;
   location: string;
   contact: ContactInfo;
+  processSteps: ProcessStep[];
   testimonials: TestimonialItem[];
   faqs: FaqItem[];
 };

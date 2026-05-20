@@ -24,10 +24,12 @@ import type {
   BuildingUnit,
   BuildingProject,
   CmsUserRole,
-  SiteSettings,
   DetailMetric,
   FaqItem,
   LeadStatus,
+  ProcessStep,
+  ServiceItem,
+  SiteSettings,
   ProgressUpdate,
   ProjectStatus,
   TeamMember,
@@ -49,10 +51,12 @@ import {
   replaceWorkAssignments,
   saveAdminProfile,
   saveBuilding,
+  saveServices,
   saveSiteSettings,
   saveTeamMember,
   saveWork,
   signInCms,
+  isCmsSignupEnabled,
   signOutCms,
   signUpCms,
   updateLeadRecord,
@@ -124,6 +128,8 @@ type UnitEditorState = {
 };
 
 type BranchEditorState = BranchOffice;
+type ServiceEditorState = ServiceItem;
+type ProcessStepEditorState = ProcessStep;
 type TestimonialEditorState = TestimonialItem;
 type FaqEditorState = FaqItem;
 
@@ -259,6 +265,26 @@ function normalizeWhatsappPhone(phone: string) {
   return digits;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    if ("message" in error && typeof error.message === "string" && error.message.trim()) {
+      return error.message;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
+}
+
 function buildWhatsappUrl(phone: string, message: string) {
   const normalizedPhone = normalizeWhatsappPhone(phone);
   const encodedMessage = encodeURIComponent(message);
@@ -310,12 +336,18 @@ function InputField({
   onChange,
   placeholder,
   type = "text",
+  autoComplete,
+  inputMode,
+  autoCapitalize = "sentences",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   type?: string;
+  autoComplete?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  autoCapitalize?: string;
 }) {
   return (
     <label className="grid gap-2 text-sm text-stone-700">
@@ -325,6 +357,9 @@ function InputField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        autoCapitalize={autoCapitalize}
         className="h-12 rounded-2xl border border-stone-200 bg-white px-4 text-stone-900 outline-none placeholder:text-stone-400 focus:border-[#d5b24a]"
       />
     </label>
@@ -480,6 +515,23 @@ function buildEmptyBranch(): BranchOffice {
     name: "",
     address: "",
     phone: "",
+  };
+}
+
+function buildEmptyService(): ServiceEditorState {
+  return {
+    id: `service-${Date.now()}`,
+    title: "",
+    text: "",
+  };
+}
+
+function buildEmptyProcessStep(): ProcessStepEditorState {
+  return {
+    id: `process-${Date.now()}`,
+    order: "01",
+    title: "",
+    text: "",
   };
 }
 
@@ -1559,9 +1611,11 @@ export default function CmsApp() {
         address: "",
         branches: [],
       },
+      processSteps: [],
       testimonials: [],
       faqs: [],
     },
+    services: [],
     works: [],
     buildings: [],
     team: [],
@@ -1586,16 +1640,24 @@ export default function CmsApp() {
   const [staffForm, setStaffForm] = useState<StaffEditorState>(toStaffEditorState());
   const [unitForm, setUnitForm] = useState<UnitEditorState>(buildEmptyUnit());
   const [branchForm, setBranchForm] = useState<BranchEditorState>(buildEmptyBranch());
+  const [serviceForm, setServiceForm] = useState<ServiceEditorState>(buildEmptyService());
+  const [processStepForm, setProcessStepForm] = useState<ProcessStepEditorState>(
+    buildEmptyProcessStep()
+  );
   const [testimonialForm, setTestimonialForm] = useState<TestimonialEditorState>(
     buildEmptyTestimonial()
   );
   const [faqForm, setFaqForm] = useState<FaqEditorState>(buildEmptyFaq());
   const [editingUnitIndex, setEditingUnitIndex] = useState<number | null>(null);
   const [editingBranchIndex, setEditingBranchIndex] = useState<number | null>(null);
+  const [editingServiceIndex, setEditingServiceIndex] = useState<number | null>(null);
+  const [editingProcessStepIndex, setEditingProcessStepIndex] = useState<number | null>(null);
   const [editingTestimonialIndex, setEditingTestimonialIndex] = useState<number | null>(null);
   const [editingFaqIndex, setEditingFaqIndex] = useState<number | null>(null);
   const [unitModalOpen, setUnitModalOpen] = useState(false);
   const [branchModalOpen, setBranchModalOpen] = useState(false);
+  const [serviceModalOpen, setServiceModalOpen] = useState(false);
+  const [processStepModalOpen, setProcessStepModalOpen] = useState(false);
   const [testimonialModalOpen, setTestimonialModalOpen] = useState(false);
   const [faqModalOpen, setFaqModalOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -1603,6 +1665,7 @@ export default function CmsApp() {
   const [buildingSearch, setBuildingSearch] = useState("");
   const [teamSearch, setTeamSearch] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
+  const [servicesForm, setServicesForm] = useState<ServiceItem[]>([]);
   const [loginForm, setLoginForm] = useState({
     email: "",
     password: "",
@@ -1631,6 +1694,8 @@ export default function CmsApp() {
     Boolean(activeModal) ||
     unitModalOpen ||
     branchModalOpen ||
+    serviceModalOpen ||
+    processStepModalOpen ||
     testimonialModalOpen ||
     faqModalOpen;
 
@@ -1694,6 +1759,28 @@ export default function CmsApp() {
     setBranchModalOpen(true);
   };
 
+  const openServiceEditor = (index?: number) => {
+    if (typeof index === "number") {
+      setServiceForm(servicesForm[index]);
+      setEditingServiceIndex(index);
+    } else {
+      setServiceForm(buildEmptyService());
+      setEditingServiceIndex(null);
+    }
+    setServiceModalOpen(true);
+  };
+
+  const openProcessStepEditor = (index?: number) => {
+    if (typeof index === "number") {
+      setProcessStepForm(settingsForm.processSteps[index]);
+      setEditingProcessStepIndex(index);
+    } else {
+      setProcessStepForm(buildEmptyProcessStep());
+      setEditingProcessStepIndex(null);
+    }
+    setProcessStepModalOpen(true);
+  };
+
   const openTestimonialEditor = (index?: number) => {
     if (typeof index === "number") {
       setTestimonialForm(settingsForm.testimonials[index]);
@@ -1735,7 +1822,7 @@ export default function CmsApp() {
       console.error(error);
       setScreenState({
         loading: false,
-        message: "No se pudo cargar el CMS.",
+        message: getErrorMessage(error, "No se pudo cargar el CMS."),
         error: true,
       });
     }
@@ -1768,6 +1855,14 @@ export default function CmsApp() {
   useEffect(() => {
     setSettingsForm(dashboard.settings);
   }, [dashboard.settings]);
+
+  useEffect(() => {
+    setServicesForm(dashboard.services);
+  }, [dashboard.services]);
+
+  useEffect(() => {
+    setServicesForm(dashboard.services);
+  }, [dashboard.services]);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -1843,6 +1938,46 @@ export default function CmsApp() {
       value: String(dashboard.leads.filter((lead) => lead.status === "nuevo").length),
       hint: "Solicitudes pendientes de primer contacto.",
     },
+    {
+      label: "Servicios",
+      value: String(servicesForm.length),
+      hint: "Bloques comerciales visibles en la home.",
+    },
+    {
+      label: "Pasos del proceso",
+      value: String(settingsForm.processSteps.length),
+      hint: "Etapas editables del proceso comercial.",
+    },
+    {
+      label: "Equipo visible",
+      value: String(dashboard.team.length),
+      hint: "Perfiles publicados en Nosotros.",
+    },
+    {
+      label: "Sucursales",
+      value: String(settingsForm.contact.branches.length),
+      hint: "Puntos de contacto activos en la web.",
+    },
+  ];
+  const workStatusSummary = projectStatuses.map((status) => ({
+    label: statusLabel(status),
+    value: dashboard.works.filter((work) => work.status === status).length,
+  }));
+  const buildingStatusSummary = projectStatuses.map((status) => ({
+    label: statusLabel(status),
+    value: dashboard.buildings.filter((building) => building.status === status).length,
+  }));
+  const staffRoleSummary: { label: string; value: number }[] = [
+    { label: "Admins", value: dashboard.staff.filter((item) => item.role === "admin").length },
+    {
+      label: "Arquitectos",
+      value: dashboard.staff.filter((item) => item.role === "architect").length,
+    },
+    {
+      label: "Encargados",
+      value: dashboard.staff.filter((item) => item.role === "site_manager").length,
+    },
+    { label: "Ventas", value: dashboard.staff.filter((item) => item.role === "sales").length },
   ];
 
   const uploadMany = async (
@@ -1893,7 +2028,7 @@ export default function CmsApp() {
         error instanceof Error &&
         error.message.toLowerCase().includes("invalid login credentials")
           ? "Correo o contrasena incorrectos. Si es tu primer acceso, usa Crear administrador."
-          : "No se pudo autenticar en Supabase.";
+          : getErrorMessage(error, "No se pudo autenticar en Supabase.");
       setScreenState({
         loading: false,
         message: nextMessage,
@@ -1957,7 +2092,7 @@ export default function CmsApp() {
       console.error(error);
       setScreenState({
         loading: false,
-        message: "No se pudo guardar la obra.",
+        message: getErrorMessage(error, "No se pudo guardar la obra."),
         error: true,
       });
     }
@@ -2008,7 +2143,7 @@ export default function CmsApp() {
       console.error(error);
       setScreenState({
         loading: false,
-        message: "No se pudo guardar el edificio.",
+        message: getErrorMessage(error, "No se pudo guardar el edificio."),
         error: true,
       });
     }
@@ -2029,7 +2164,7 @@ export default function CmsApp() {
       console.error(error);
       setScreenState({
         loading: false,
-        message: "No se pudo guardar el miembro.",
+        message: getErrorMessage(error, "No se pudo guardar el miembro."),
         error: true,
       });
     }
@@ -2038,18 +2173,18 @@ export default function CmsApp() {
   const saveCurrentSettings = async () => {
     setScreenState({ loading: true, message: "", error: false });
     try {
-      await saveSiteSettings(settingsForm);
+      await Promise.all([saveSiteSettings(settingsForm), saveServices(servicesForm)]);
       await refreshDashboard();
       setScreenState({
         loading: false,
-        message: "Ajustes del sitio actualizados.",
+        message: "Home y ajustes comerciales actualizados.",
         error: false,
       });
     } catch (error) {
       console.error(error);
       setScreenState({
         loading: false,
-        message: "No se pudieron guardar los ajustes del sitio.",
+        message: getErrorMessage(error, "No se pudieron guardar los ajustes del sitio."),
         error: true,
       });
     }
@@ -2108,7 +2243,7 @@ export default function CmsApp() {
       console.error(error);
       setScreenState({
         loading: false,
-        message: "No se pudo actualizar el perfil de acceso.",
+        message: getErrorMessage(error, "No se pudo actualizar el perfil de acceso."),
         error: true,
       });
     }
@@ -2128,7 +2263,7 @@ export default function CmsApp() {
       console.error(error);
       setScreenState({
         loading: false,
-        message: "No se pudo actualizar el lead.",
+        message: getErrorMessage(error, "No se pudo actualizar el lead."),
         error: true,
       });
     }
@@ -2231,21 +2366,21 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
             Volver al sitio
           </a>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-            <CardShell className="p-6 sm:p-8">
+          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.98fr] lg:items-start">
+            <CardShell className="order-2 p-6 sm:p-8 lg:order-1">
               <img src="/logo/logo.png" alt="Mendoza" className="h-auto w-[112px] object-contain" />
               <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#e7d4a8] bg-[#fff4d4] px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-[#a67b12]">
                 <ShieldCheck className="h-3.5 w-3.5" />
                 Acceso privado
               </div>
-              <h1 className="mt-5 text-4xl font-semibold tracking-[-0.06em] text-stone-900">
+              <h1 className="mt-5 text-3xl font-semibold tracking-[-0.06em] text-stone-900 sm:text-4xl">
                 Ingresa al panel de Mondoza con la misma identidad del sitio.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base">
                 El acceso administra obras, edificios, planos, avances, equipo
                 y leads desde una sola experiencia visual.
               </p>
-              <div className="mt-8 grid gap-4">
+              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
                 {authHighlights.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -2266,14 +2401,36 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
               </div>
             </CardShell>
 
-            <CardShell className="p-6 sm:p-8">
-              <div className="flex flex-wrap gap-3">
+            <CardShell className="order-1 p-5 sm:p-8 lg:order-2">
+              <div className="mx-auto max-w-xl">
+                <img
+                  src="/logo/logo.png"
+                  alt="Mendoza"
+                  className="mx-auto h-auto w-[84px] object-contain sm:w-[96px]"
+                />
+                <div className="mt-5 text-center">
+                  <p className="text-[11px] uppercase tracking-[0.28em] text-[#a67b12]">
+                    Acceso CMS
+                  </p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-stone-900">
+                    {loginForm.mode === "login"
+                      ? "Entrar al CMS"
+                      : "Crear acceso al CMS"}
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-stone-500">
+                    {loginForm.mode === "login"
+                      ? "Ingresa con tu usuario autorizado para administrar el backoffice."
+                      : "El nuevo usuario nace con rol de arquitecto. Luego el administrador lo asigna a obras o edificios desde el CMS."}
+                  </p>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() =>
                     setLoginForm((current) => ({ ...current, mode: "login" }))
                   }
-                  className={`inline-flex rounded-full px-4 py-2 text-sm font-medium ${
+                  className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2 text-sm font-medium ${
                     loginForm.mode === "login"
                       ? "bg-[#FFDC63] text-black"
                       : "border border-stone-200 bg-white text-stone-800"
@@ -2281,70 +2438,75 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                 >
                   Iniciar sesion
                 </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setLoginForm((current) => ({ ...current, mode: "signup" }))
-                  }
-                  className={`inline-flex rounded-full px-4 py-2 text-sm font-medium ${
-                    loginForm.mode === "signup"
-                      ? "bg-[#FFDC63] text-black"
-                      : "border border-stone-200 bg-white text-stone-800"
-                  }`}
-                >
-                  Crear acceso
-                </button>
+                {isCmsSignupEnabled ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLoginForm((current) => ({ ...current, mode: "signup" }))
+                    }
+                    className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2 text-sm font-medium ${
+                      loginForm.mode === "signup"
+                        ? "bg-[#FFDC63] text-black"
+                        : "border border-stone-200 bg-white text-stone-800"
+                    }`}
+                  >
+                    Crear acceso
+                  </button>
+                ) : null}
+                </div>
+
+                {!isCmsSignupEnabled && (
+                  <div className="mt-4 rounded-[1.4rem] border border-stone-200 bg-[#fbf7f0] px-4 py-3 text-sm leading-6 text-stone-600">
+                    La creacion publica de accesos esta desactivada por seguridad. Los nuevos usuarios deben habilitarse desde administracion.
+                  </div>
+                )}
+
+                <form onSubmit={handleAuthSubmit} className="mt-6 grid gap-4">
+                  <InputField
+                    label="Correo"
+                    value={loginForm.email}
+                    onChange={(value) =>
+                      setLoginForm((current) => ({ ...current, email: value }))
+                    }
+                    type="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    autoCapitalize="none"
+                  />
+                  <InputField
+                    label="Contrasena"
+                    value={loginForm.password}
+                    onChange={(value) =>
+                      setLoginForm((current) => ({ ...current, password: value }))
+                    }
+                    type="password"
+                    autoComplete={
+                      loginForm.mode === "login" ? "current-password" : "new-password"
+                    }
+                    autoCapitalize="none"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex h-12 items-center justify-center rounded-full bg-stone-900 px-5 font-medium text-white"
+                  >
+                    {screenState.loading
+                      ? "Procesando..."
+                      : loginForm.mode === "login"
+                        ? "Entrar ahora"
+                        : "Crear acceso"}
+                  </button>
+                </form>
+
+                {screenState.message && (
+                  <p
+                    className={`mt-4 text-sm ${
+                      screenState.error ? "text-rose-500" : "text-emerald-600"
+                    }`}
+                  >
+                    {screenState.message}
+                  </p>
+                )}
               </div>
-
-              <h2 className="mt-6 text-3xl font-semibold tracking-[-0.05em] text-stone-900">
-                {loginForm.mode === "login"
-                  ? "Entrar al CMS"
-                  : "Crear acceso al CMS"}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-stone-500">
-                {loginForm.mode === "login"
-                  ? "Usa tu usuario de Supabase Auth para entrar al backoffice."
-                  : "El nuevo usuario nace con rol de arquitecto. Luego el administrador lo asigna a obras o edificios desde el CMS."}
-              </p>
-
-              <form onSubmit={handleAuthSubmit} className="mt-6 grid gap-4">
-                <InputField
-                  label="Correo"
-                  value={loginForm.email}
-                  onChange={(value) =>
-                    setLoginForm((current) => ({ ...current, email: value }))
-                  }
-                  type="email"
-                />
-                <InputField
-                  label="Contrasena"
-                  value={loginForm.password}
-                  onChange={(value) =>
-                    setLoginForm((current) => ({ ...current, password: value }))
-                  }
-                  type="password"
-                />
-                <button
-                  type="submit"
-                  className="inline-flex h-12 items-center justify-center rounded-full bg-stone-900 px-5 font-medium text-white"
-                >
-                  {screenState.loading
-                    ? "Procesando..."
-                    : loginForm.mode === "login"
-                      ? "Entrar ahora"
-                      : "Crear acceso"}
-                </button>
-              </form>
-
-              {screenState.message && (
-                <p
-                  className={`mt-4 text-sm ${
-                    screenState.error ? "text-rose-500" : "text-emerald-600"
-                  }`}
-                >
-                  {screenState.message}
-                </p>
-              )}
             </CardShell>
           </div>
         </div>
@@ -2409,6 +2571,59 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
               hint={stat.hint}
             />
           ))}
+        </div>
+
+        <div className="mt-4 grid gap-4 xl:grid-cols-3">
+          <div className="rounded-[2rem] border border-white/10 bg-black/55 p-5 shadow-2xl shadow-black/20 backdrop-blur-xl">
+            <p className="text-sm font-medium text-white">Estado de obras</p>
+            <div className="mt-4 grid gap-3">
+              {workStatusSummary.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between rounded-[1.3rem] border border-white/10 bg-white/[0.05] px-4 py-3"
+                >
+                  <span className="text-sm text-stone-300">{item.label}</span>
+                  <span className="rounded-full bg-[#fff1c3] px-3 py-1 text-xs font-medium text-[#8c6611]">
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-black/55 p-5 shadow-2xl shadow-black/20 backdrop-blur-xl">
+            <p className="text-sm font-medium text-white">Estado de edificios</p>
+            <div className="mt-4 grid gap-3">
+              {buildingStatusSummary.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between rounded-[1.3rem] border border-white/10 bg-white/[0.05] px-4 py-3"
+                >
+                  <span className="text-sm text-stone-300">{item.label}</span>
+                  <span className="rounded-full bg-[#fff1c3] px-3 py-1 text-xs font-medium text-[#8c6611]">
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-black/55 p-5 shadow-2xl shadow-black/20 backdrop-blur-xl">
+            <p className="text-sm font-medium text-white">Accesos por rol</p>
+            <div className="mt-4 grid gap-3">
+              {staffRoleSummary.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between rounded-[1.3rem] border border-white/10 bg-white/[0.05] px-4 py-3"
+                >
+                  <span className="text-sm text-stone-300">{item.label}</span>
+                  <span className="rounded-full bg-[#fff1c3] px-3 py-1 text-xs font-medium text-[#8c6611]">
+                    {item.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 grid gap-4 xl:grid-cols-[240px_1fr]">
@@ -2780,6 +2995,128 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                     ))}
                   </div>
                 </CardShell>
+
+                <div className="grid gap-4 xl:grid-cols-2">
+                  <CardShell className="p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-stone-900">Servicios</h3>
+                        <p className="mt-2 text-sm leading-6 text-stone-500">
+                          Administra los bloques comerciales que aparecen en la home.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openServiceEditor()}
+                        className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Nuevo servicio
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      {servicesForm.map((service, index) => (
+                        <div
+                          key={service.id}
+                          className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-stone-900">
+                                {service.title}
+                              </p>
+                              <p className="mt-1 text-xs uppercase tracking-[0.22em] text-stone-400">
+                                Servicio {index + 1}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openServiceEditor(index)}
+                                className="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-700"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setServicesForm((current) =>
+                                    current.filter((_, currentIndex) => currentIndex !== index)
+                                  )
+                                }
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-3 text-sm leading-6 text-stone-600">{service.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardShell>
+
+                  <CardShell className="p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-stone-900">Proceso</h3>
+                        <p className="mt-2 text-sm leading-6 text-stone-500">
+                          Edita las etapas comerciales y tecnicas visibles en la landing.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openProcessStepEditor()}
+                        className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Nuevo paso
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      {settingsForm.processSteps.map((step, index) => (
+                        <div
+                          key={step.id}
+                          className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-stone-900">
+                                {step.order} · {step.title}
+                              </p>
+                              <p className="mt-1 text-sm text-stone-500">{step.text}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openProcessStepEditor(index)}
+                                className="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-700"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSettingsForm((current) => ({
+                                    ...current,
+                                    processSteps: current.processSteps.filter(
+                                      (_, currentIndex) => currentIndex !== index
+                                    ),
+                                  }))
+                                }
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardShell>
+                </div>
 
                 <div className="grid gap-4 xl:grid-cols-2">
                   <CardShell className="p-5">
@@ -3811,6 +4148,123 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
             >
               <Save className="h-4 w-4" />
               Guardar testimonio
+            </button>
+          </div>
+        </div>
+      </EditorModal>
+
+      <EditorModal
+        open={serviceModalOpen}
+        title={editingServiceIndex === null ? "Nuevo servicio" : "Editar servicio"}
+        description="Define el titulo y el texto comercial de cada bloque visible en la home."
+        onClose={() => setServiceModalOpen(false)}
+      >
+        <div className="grid gap-4">
+          <InputField
+            label="Titulo"
+            value={serviceForm.title}
+            onChange={(value) => setServiceForm((current) => ({ ...current, title: value }))}
+          />
+          <TextareaField
+            label="Descripcion"
+            value={serviceForm.text}
+            onChange={(value) => setServiceForm((current) => ({ ...current, text: value }))}
+            rows={5}
+          />
+
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[#e6d7c2] pt-4">
+            <button
+              type="button"
+              onClick={() => setServiceModalOpen(false)}
+              className="inline-flex h-11 items-center rounded-full border border-stone-200 bg-white px-4 text-sm text-stone-700"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setServicesForm((current) =>
+                  editingServiceIndex === null
+                    ? [...current, serviceForm]
+                    : current.map((item, index) =>
+                        index === editingServiceIndex ? serviceForm : item
+                      )
+                );
+                setServiceModalOpen(false);
+              }}
+              disabled={!serviceForm.title.trim() || !serviceForm.text.trim()}
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              Guardar servicio
+            </button>
+          </div>
+        </div>
+      </EditorModal>
+
+      <EditorModal
+        open={processStepModalOpen}
+        title={editingProcessStepIndex === null ? "Nuevo paso" : "Editar paso"}
+        description="Edita el orden, titulo y descripcion de cada etapa del proceso."
+        onClose={() => setProcessStepModalOpen(false)}
+      >
+        <div className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-[120px_1fr]">
+            <InputField
+              label="Orden"
+              value={processStepForm.order}
+              onChange={(value) =>
+                setProcessStepForm((current) => ({ ...current, order: value }))
+              }
+            />
+            <InputField
+              label="Titulo"
+              value={processStepForm.title}
+              onChange={(value) =>
+                setProcessStepForm((current) => ({ ...current, title: value }))
+              }
+            />
+          </div>
+          <TextareaField
+            label="Descripcion"
+            value={processStepForm.text}
+            onChange={(value) =>
+              setProcessStepForm((current) => ({ ...current, text: value }))
+            }
+            rows={5}
+          />
+
+          <div className="flex flex-wrap justify-end gap-3 border-t border-[#e6d7c2] pt-4">
+            <button
+              type="button"
+              onClick={() => setProcessStepModalOpen(false)}
+              className="inline-flex h-11 items-center rounded-full border border-stone-200 bg-white px-4 text-sm text-stone-700"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSettingsForm((current) => ({
+                  ...current,
+                  processSteps:
+                    editingProcessStepIndex === null
+                      ? [...current.processSteps, processStepForm]
+                      : current.processSteps.map((item, index) =>
+                          index === editingProcessStepIndex ? processStepForm : item
+                        ),
+                }));
+                setProcessStepModalOpen(false);
+              }}
+              disabled={
+                !processStepForm.order.trim() ||
+                !processStepForm.title.trim() ||
+                !processStepForm.text.trim()
+              }
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              Guardar paso
             </button>
           </div>
         </div>

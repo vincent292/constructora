@@ -1,6 +1,7 @@
 import type {
   BuildingProject,
   FaqItem,
+  ProcessStep,
   ServiceItem,
   SiteContent,
   SiteSettings,
@@ -40,6 +41,7 @@ const settings: SiteSettings = {
       },
     ],
   },
+  processSteps: [],
   testimonials: [],
   faqs: [],
 };
@@ -64,6 +66,33 @@ const services: ServiceItem[] = [
     id: "srv-4",
     title: "Remodelacion y ampliacion",
     text: "Intervenimos viviendas, locales y espacios existentes con soluciones funcionales y buen criterio constructivo.",
+  },
+];
+
+const processSteps: ProcessStep[] = [
+  {
+    id: "process-1",
+    order: "01",
+    title: "Planificacion",
+    text: "Estudiamos el alcance del proyecto, el presupuesto y la estrategia constructiva.",
+  },
+  {
+    id: "process-2",
+    order: "02",
+    title: "Ejecucion",
+    text: "Desarrollamos la obra con control tecnico, coordinacion en campo y seguimiento continuo.",
+  },
+  {
+    id: "process-3",
+    order: "03",
+    title: "Supervision",
+    text: "Cuidamos calidad, tiempos, avances y resolucion de detalles durante cada etapa.",
+  },
+  {
+    id: "process-4",
+    order: "04",
+    title: "Entrega",
+    text: "Cerramos con orden, documentacion y acompanamiento para la puesta en marcha del proyecto.",
   },
 ];
 
@@ -321,6 +350,7 @@ const faqs: FaqItem[] = [
 export const fallbackContent: SiteContent = {
   settings: {
     ...settings,
+    processSteps,
     testimonials,
     faqs,
   },

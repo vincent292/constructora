@@ -6,11 +6,22 @@ import type {
   LeadStatus,
   ProgressUpdate,
   ProjectStatus,
+  ServiceItem,
   SiteSettings,
   TeamMember,
   WorkProject,
 } from "../types/cms";
 import { fallbackContent } from "../data/fallback-content";
+import {
+  assertEmail,
+  assertPassword,
+  sanitizeHttpUrl,
+  sanitizePhone,
+  sanitizeSlug,
+  sanitizeStringList,
+  sanitizeText,
+  sanitizeUrlList,
+} from "./security";
 import { isSupabaseConfigured, supabaseClient } from "./supabase";
 
 export type LeadRecord = {
@@ -149,6 +160,7 @@ type SiteSettingsRow = {
   tagline: string;
   location: string;
   contact: SiteSettings["contact"] | null;
+  process_steps: SiteSettings["processSteps"] | null;
   testimonials: SiteSettings["testimonials"] | null;
   faqs: SiteSettings["faqs"] | null;
 };
@@ -165,6 +177,7 @@ type BuildingAssignmentRow = {
 
 export type CmsDashboardData = {
   settings: SiteSettings;
+  services: ServiceItem[];
   works: WorkProject[];
   buildings: BuildingProject[];
   team: TeamMember[];
@@ -180,6 +193,9 @@ function getClient() {
 
   return supabaseClient;
 }
+
+export const isCmsSignupEnabled =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_CMS_SIGNUP === "true";
 
 function mapWork(row: WorkRow): WorkProject {
   return {
@@ -298,6 +314,10 @@ function mapSiteSettings(row?: SiteSettingsRow): SiteSettings {
           ? nextContact.branches
           : fallbackBranches,
     },
+    processSteps:
+      row?.process_steps && row.process_steps.length > 0
+        ? row.process_steps
+        : fallbackContent.settings.processSteps,
     testimonials:
       row?.testimonials && row.testimonials.length > 0
         ? row.testimonials
@@ -338,7 +358,12 @@ export function onCmsAuthStateChange(
 
 export async function signInCms(email: string, password: string) {
   const client = getClient();
-  const { error } = await client.auth.signInWithPassword({ email, password });
+  const normalizedEmail = assertEmail(email);
+  const normalizedPassword = assertPassword(password);
+  const { error } = await client.auth.signInWithPassword({
+    email: normalizedEmail,
+    password: normalizedPassword,
+  });
 
   if (error) {
     throw error;
@@ -346,15 +371,26 @@ export async function signInCms(email: string, password: string) {
 }
 
 export async function signUpCms(email: string, password: string) {
+  if (!isCmsSignupEnabled) {
+    throw new Error(
+      "La creacion publica de accesos esta desactivada. Usa el panel de administracion para habilitar nuevos usuarios."
+    );
+  }
+
   const client = getClient();
-  const { error, data } = await client.auth.signUp({ email, password });
+  const normalizedEmail = assertEmail(email);
+  const normalizedPassword = assertPassword(password);
+  const { error, data } = await client.auth.signUp({
+    email: normalizedEmail,
+    password: normalizedPassword,
+  });
 
   if (error) {
     throw error;
   }
 
   const userId = data.user?.id;
-  const userEmail = data.user?.email ?? email;
+  const userEmail = data.user?.email ?? normalizedEmail;
 
   if (userId) {
     const { count, error: countError } = await client
@@ -423,6 +459,7 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
 
   const [
     settingsRes,
+    servicesRes,
     worksRes,
     buildingsRes,
     teamRes,
@@ -433,6 +470,7 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
     buildingAssignmentsRes,
   ] = await Promise.all([
     client.from("site_settings").select("*").limit(1).maybeSingle(),
+    client.from("services").select("id,title,text,display_order").order("display_order"),
     client
       .from("works")
       .select(
@@ -467,6 +505,7 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
 
   const error =
     settingsRes.error ??
+    servicesRes.error ??
     worksRes.error ??
     buildingsRes.error ??
     teamRes.error ??
@@ -523,6 +562,14 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
 
   return {
     settings: mapSiteSettings((settingsRes.data ?? undefined) as SiteSettingsRow | undefined),
+    services:
+      (servicesRes.data ?? []).length > 0
+        ? (servicesRes.data ?? []).map((row) => ({
+            id: row.id,
+            title: row.title,
+            text: row.text,
+          }))
+        : fallbackContent.services,
     works: filteredWorks,
     buildings: filteredBuildings,
     team: (teamRes.data ?? []).map((row) => mapTeam(row as TeamRow)),
@@ -567,23 +614,38 @@ export async function uploadCmsAsset(
 export async function saveWork(work: Omit<WorkProject, "id"> & { id?: string }) {
   const client = getClient();
   const payload = {
-    slug: work.slug,
-    title: work.title,
-    category: work.category,
-    location: work.location,
-    year: work.year,
-    area: work.area,
+    slug: sanitizeSlug(work.slug),
+    title: sanitizeText(work.title, "El titulo", { min: 3, max: 140 }),
+    category: sanitizeText(work.category, "La categoria", { min: 3, max: 80 }),
+    location: sanitizeText(work.location, "La ubicacion", { min: 3, max: 120 }),
+    year: sanitizeText(work.year, "El ano", { min: 4, max: 12 }),
+    area: sanitizeText(work.area, "El area", { min: 2, max: 40 }),
     status: work.status,
-    client_name: work.clientName,
-    owner_name: work.ownerName,
-    summary: work.summary,
-    description: work.description,
-    hero_image: work.heroImage,
-    gallery: work.gallery,
-    plan_files: work.planFiles,
-    brochure_file: work.brochureFile ?? null,
-    metrics: work.metrics,
-    map_embed_url: work.mapEmbedUrl ?? null,
+    client_name: sanitizeText(work.clientName, "El cliente", { min: 2, max: 120 }),
+    owner_name: sanitizeText(work.ownerName, "El responsable", { min: 2, max: 120 }),
+    summary: sanitizeText(work.summary, "El resumen", {
+      min: 12,
+      max: 320,
+      preserveNewlines: true,
+    }),
+    description: sanitizeText(work.description, "La descripcion", {
+      min: 20,
+      max: 2400,
+      preserveNewlines: true,
+    }),
+    hero_image: sanitizeHttpUrl(work.heroImage, "La portada", false),
+    gallery: sanitizeUrlList(work.gallery, "La imagen de galeria"),
+    plan_files: sanitizeUrlList(work.planFiles, "El plano"),
+    brochure_file: work.brochureFile
+      ? sanitizeHttpUrl(work.brochureFile, "La ficha")
+      : null,
+    metrics: work.metrics.map((metric) => ({
+      label: sanitizeText(metric.label, "La etiqueta de metrica", { min: 2, max: 60 }),
+      value: sanitizeText(metric.value, "El valor de metrica", { min: 1, max: 140 }),
+    })),
+    map_embed_url: work.mapEmbedUrl
+      ? sanitizeHttpUrl(work.mapEmbedUrl, "El mapa embebido")
+      : null,
   };
 
   let workId = work.id;
@@ -626,11 +688,20 @@ export async function saveWork(work: Omit<WorkProject, "id"> & { id?: string }) 
     const { error: updateError } = await client
       .from("work_updates")
       .update({
-        title: update.title,
+        title: sanitizeText(update.title, "El titulo del avance", { min: 3, max: 120 }),
         date: update.date,
-        summary: update.summary,
-        performed_by: update.performedBy ?? null,
-        photos: update.photos ?? [],
+        summary: sanitizeText(update.summary, "El resumen del avance", {
+          min: 10,
+          max: 1200,
+          preserveNewlines: true,
+        }),
+        performed_by: update.performedBy
+          ? sanitizeText(update.performedBy, "El responsable del avance", {
+              min: 2,
+              max: 120,
+            })
+          : null,
+        photos: sanitizeUrlList(update.photos ?? [], "La foto del avance"),
         is_deleted: false,
         deleted_at: null,
       })
@@ -645,11 +716,20 @@ export async function saveWork(work: Omit<WorkProject, "id"> & { id?: string }) 
     const { error: insertUpdatesError } = await client.from("work_updates").insert(
       newUpdates.map((update) => ({
         work_id: workId,
-        title: update.title,
+        title: sanitizeText(update.title, "El titulo del avance", { min: 3, max: 120 }),
         date: update.date,
-        summary: update.summary,
-        performed_by: update.performedBy ?? null,
-        photos: update.photos ?? [],
+        summary: sanitizeText(update.summary, "El resumen del avance", {
+          min: 10,
+          max: 1200,
+          preserveNewlines: true,
+        }),
+        performed_by: update.performedBy
+          ? sanitizeText(update.performedBy, "El responsable del avance", {
+              min: 2,
+              max: 120,
+            })
+          : null,
+        photos: sanitizeUrlList(update.photos ?? [], "La foto del avance"),
         is_deleted: false,
       }))
     );
@@ -718,24 +798,39 @@ export async function saveBuilding(
 ) {
   const client = getClient();
   const payload = {
-    slug: building.slug,
-    title: building.title,
-    category: building.category,
-    location: building.location,
-    year: building.year,
-    area: building.area,
+    slug: sanitizeSlug(building.slug),
+    title: sanitizeText(building.title, "El titulo", { min: 3, max: 140 }),
+    category: sanitizeText(building.category, "La categoria", { min: 3, max: 80 }),
+    location: sanitizeText(building.location, "La ubicacion", { min: 3, max: 120 }),
+    year: sanitizeText(building.year, "El ano", { min: 4, max: 12 }),
+    area: sanitizeText(building.area, "El area", { min: 2, max: 40 }),
     status: building.status,
-    client_name: building.clientName,
-    owner_name: building.ownerName,
-    summary: building.summary,
-    description: building.description,
-    hero_image: building.heroImage,
-    gallery: building.gallery,
-    plan_files: building.planFiles,
-    brochure_file: building.brochureFile ?? null,
-    metrics: building.metrics,
-    amenities: building.amenities,
-    map_embed_url: building.mapEmbedUrl ?? null,
+    client_name: sanitizeText(building.clientName, "El cliente", { min: 2, max: 120 }),
+    owner_name: sanitizeText(building.ownerName, "El responsable", { min: 2, max: 120 }),
+    summary: sanitizeText(building.summary, "El resumen", {
+      min: 12,
+      max: 320,
+      preserveNewlines: true,
+    }),
+    description: sanitizeText(building.description, "La descripcion", {
+      min: 20,
+      max: 2400,
+      preserveNewlines: true,
+    }),
+    hero_image: sanitizeHttpUrl(building.heroImage, "La portada", false),
+    gallery: sanitizeUrlList(building.gallery, "La imagen de galeria"),
+    plan_files: sanitizeUrlList(building.planFiles, "El plano"),
+    brochure_file: building.brochureFile
+      ? sanitizeHttpUrl(building.brochureFile, "La ficha")
+      : null,
+    metrics: building.metrics.map((metric) => ({
+      label: sanitizeText(metric.label, "La etiqueta de metrica", { min: 2, max: 60 }),
+      value: sanitizeText(metric.value, "El valor de metrica", { min: 1, max: 140 }),
+    })),
+    amenities: sanitizeStringList(building.amenities, "La amenidad", 80),
+    map_embed_url: building.mapEmbedUrl
+      ? sanitizeHttpUrl(building.mapEmbedUrl, "El mapa embebido")
+      : null,
   };
 
   let buildingId = building.id;
@@ -780,12 +875,15 @@ export async function saveBuilding(
     const { error: insertUnitsError } = await client.from("building_units").insert(
       building.units.map((unit) => ({
         building_id: buildingId,
-        title: unit.title,
+        title: sanitizeText(unit.title, "El nombre de la unidad", { min: 2, max: 120 }),
         bedrooms: unit.bedrooms,
         bathrooms: unit.bathrooms,
-        area: unit.area,
-        floor_label: unit.floorLabel,
-        price: unit.price ?? null,
+        area: sanitizeText(unit.area, "El area de la unidad", { min: 2, max: 40 }),
+        floor_label: sanitizeText(unit.floorLabel, "El piso o ubicacion", {
+          min: 2,
+          max: 80,
+        }),
+        price: unit.price ? sanitizeText(unit.price, "El precio", { max: 40 }) : null,
         is_available: unit.isAvailable,
       }))
     );
@@ -840,10 +938,14 @@ export async function replaceBuildingAssignments(
 export async function saveTeamMember(member: Omit<TeamMember, "id"> & { id?: string }) {
   const client = getClient();
   const payload = {
-    name: member.name,
-    role: member.role,
-    bio: member.bio,
-    image: member.image,
+    name: sanitizeText(member.name, "El nombre", { min: 2, max: 120 }),
+    role: sanitizeText(member.role, "El cargo", { min: 2, max: 80 }),
+    bio: sanitizeText(member.bio, "La bio", {
+      min: 10,
+      max: 1200,
+      preserveNewlines: true,
+    }),
+    image: sanitizeHttpUrl(member.image, "La foto", false),
   };
 
   if (member.id) {
@@ -868,17 +970,86 @@ export async function saveTeamMember(member: Omit<TeamMember, "id"> & { id?: str
 export async function saveSiteSettings(settings: SiteSettings) {
   const client = getClient();
   const payload = {
-    company_name: settings.companyName,
-    hero_eyebrow: settings.heroEyebrow,
-    hero_title: settings.heroTitle,
-    hero_accent: settings.heroAccent,
-    hero_description: settings.heroDescription,
-    hero_image: settings.heroImage,
-    tagline: settings.tagline,
-    location: settings.location,
-    contact: settings.contact,
-    testimonials: settings.testimonials,
-    faqs: settings.faqs,
+    company_name: sanitizeText(settings.companyName, "El nombre de empresa", {
+      min: 3,
+      max: 160,
+    }),
+    hero_eyebrow: sanitizeText(settings.heroEyebrow, "El eyebrow del hero", {
+      min: 3,
+      max: 120,
+    }),
+    hero_title: sanitizeText(settings.heroTitle, "El titulo del hero", {
+      min: 3,
+      max: 120,
+    }),
+    hero_accent: sanitizeText(settings.heroAccent, "El acento del hero", {
+      min: 2,
+      max: 120,
+    }),
+    hero_description: sanitizeText(settings.heroDescription, "La descripcion del hero", {
+      min: 10,
+      max: 420,
+      preserveNewlines: true,
+    }),
+    hero_image: sanitizeHttpUrl(settings.heroImage, "La imagen del hero", false),
+    tagline: sanitizeText(settings.tagline, "El tagline", { min: 4, max: 180 }),
+    location: sanitizeText(settings.location, "La ubicacion general", {
+      min: 2,
+      max: 140,
+    }),
+    contact: {
+      phone: sanitizePhone(settings.contact.phone),
+      whatsapp: sanitizePhone(settings.contact.whatsapp),
+      email: assertEmail(settings.contact.email, "correo principal"),
+      address: sanitizeText(settings.contact.address, "La direccion principal", {
+        min: 6,
+        max: 180,
+      }),
+      branches: settings.contact.branches.map((branch) => ({
+        id: branch.id,
+        name: sanitizeText(branch.name, "El nombre de sucursal", { min: 3, max: 120 }),
+        address: sanitizeText(branch.address, "La direccion de sucursal", {
+          min: 6,
+          max: 180,
+        }),
+        phone: sanitizePhone(branch.phone),
+      })),
+    },
+    process_steps: settings.processSteps.map((item) => ({
+      id: item.id,
+      order: sanitizeText(item.order, "El orden del paso", { min: 1, max: 8 }),
+      title: sanitizeText(item.title, "El titulo del paso", { min: 2, max: 120 }),
+      text: sanitizeText(item.text, "La descripcion del paso", {
+        min: 10,
+        max: 320,
+        preserveNewlines: true,
+      }),
+    })),
+    testimonials: settings.testimonials.map((item) => ({
+      id: item.id,
+      name: sanitizeText(item.name, "El nombre del testimonio", { min: 2, max: 120 }),
+      role: sanitizeText(item.role, "El cargo del testimonio", { min: 2, max: 120 }),
+      company: item.company
+        ? sanitizeText(item.company, "La empresa del testimonio", { min: 2, max: 120 })
+        : "",
+      quote: sanitizeText(item.quote, "El comentario del testimonio", {
+        min: 10,
+        max: 420,
+        preserveNewlines: true,
+      }),
+    })),
+    faqs: settings.faqs.map((item) => ({
+      id: item.id,
+      question: sanitizeText(item.question, "La pregunta frecuente", {
+        min: 6,
+        max: 180,
+      }),
+      answer: sanitizeText(item.answer, "La respuesta frecuente", {
+        min: 10,
+        max: 600,
+        preserveNewlines: true,
+      }),
+    })),
   };
 
   if (settings.id) {
@@ -900,6 +1071,39 @@ export async function saveSiteSettings(settings: SiteSettings) {
   }
 }
 
+export async function saveServices(services: ServiceItem[]) {
+  const client = getClient();
+  const { error: deleteError } = await client.from("services").delete().neq("id", "");
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  if (services.length === 0) {
+    return;
+  }
+
+  const { error } = await client.from("services").insert(
+    services.map((service, index) => ({
+      id: service.id,
+      title: sanitizeText(service.title, "El titulo del servicio", {
+        min: 3,
+        max: 120,
+      }),
+      text: sanitizeText(service.text, "El texto del servicio", {
+        min: 10,
+        max: 260,
+        preserveNewlines: true,
+      }),
+      display_order: index + 1,
+    }))
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function saveAdminProfile(profile: {
   userId: string;
   fullName: string;
@@ -910,8 +1114,11 @@ export async function saveAdminProfile(profile: {
   const { error } = await client.from("admin_profiles").upsert(
     {
       user_id: profile.userId,
-      full_name: profile.fullName,
-      email: profile.email ?? null,
+      full_name: sanitizeText(profile.fullName, "El nombre del acceso", {
+        min: 2,
+        max: 120,
+      }),
+      email: profile.email ? assertEmail(profile.email) : null,
       role: profile.role,
     },
     { onConflict: "user_id" }
@@ -941,7 +1148,12 @@ export async function updateLeadRecord(
     .from("leads")
     .update({
       status,
-      admin_notes: adminNotes || null,
+      admin_notes: adminNotes
+        ? sanitizeText(adminNotes, "Las notas internas", {
+            max: 2000,
+            preserveNewlines: true,
+          })
+        : null,
     })
     .eq("id", leadId);
 

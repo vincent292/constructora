@@ -82,13 +82,6 @@ const boliviaCities = [
   "Pando",
 ] as const;
 
-const processSteps = [
-  ["01", "Planificacion", "Estudiamos el alcance del proyecto, el presupuesto y la estrategia constructiva."],
-  ["02", "Ejecucion", "Desarrollamos la obra con control tecnico, coordinacion en campo y seguimiento continuo."],
-  ["03", "Supervision", "Cuidamos calidad, tiempos, avances y resolucion de detalles durante cada etapa."],
-  ["04", "Entrega", "Cerramos con orden, documentacion y acompanamiento para la puesta en marcha del proyecto."],
-] as const;
-
 function Button({
   children,
   variant = "primary",
@@ -2241,17 +2234,17 @@ export default function App() {
 
                   <div className="relative rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:rounded-[3rem] sm:p-5 md:p-8">
                     <div className="absolute -inset-1 -z-10 rounded-[3.2rem] bg-gradient-to-br from-[#FFDC63]/20 via-transparent to-white/5 blur-xl" />
-                    {processSteps.map((step) => (
+                    {content.settings.processSteps.map((step) => (
                       <div
-                        key={step[0]}
+                        key={step.id}
                         className="gsap-reveal flex gap-3 border-b border-white/10 py-4 last:border-b-0 sm:gap-5 sm:py-6"
                       >
                         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-[#FFDC63]/25 bg-[#FFDC63]/10 text-sm font-semibold text-[#FFDC63] sm:h-12 sm:w-12">
-                          {step[0]}
+                          {step.order}
                         </span>
                         <div>
-                          <h3 className="text-lg font-semibold sm:text-2xl">{step[1]}</h3>
-                          <p className="mt-1.5 text-sm leading-6 text-stone-400 sm:mt-2 sm:text-base sm:leading-7">{step[2]}</p>
+                          <h3 className="text-lg font-semibold sm:text-2xl">{step.title}</h3>
+                          <p className="mt-1.5 text-sm leading-6 text-stone-400 sm:mt-2 sm:text-base sm:leading-7">{step.text}</p>
                         </div>
                       </div>
                     ))}
