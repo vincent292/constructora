@@ -12,14 +12,14 @@ import type {
 
 const settings: SiteSettings = {
   companyName: "Mondoza Construcciones Civiles en General",
-  heroEyebrow: "Construccion civil y edificacion",
+  heroEyebrow: "Construccion, arquitectura y remodelacion",
   heroTitle: "Construyendo",
   heroAccent: "tus suenos",
   heroDescription:
-    "Ejecutamos obras civiles, edificios y proyectos residenciales con seguimiento tecnico, criterio constructivo y atencion cercana en cada etapa.",
+    "Desarrollamos construccion, arquitectura, remodelaciones e interiores con seguimiento tecnico y cotizaciones ajustadas al alcance real de cada proyecto.",
   heroImage:
     "https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=2400&q=90",
-  tagline: "Soluciones constructivas para vivienda, comercio y desarrollo inmobiliario.",
+  tagline: "Construccion, planos, remodelacion e interiores para vivienda, comercio y proyectos a medida.",
   location: "Cochabamba y Santa Cruz, Bolivia",
   contact: {
     phone: "+591 70000000",
@@ -49,23 +49,33 @@ const settings: SiteSettings = {
 const services: ServiceItem[] = [
   {
     id: "srv-1",
-    title: "Ejecucion integral de obras",
-    text: "Planificacion, construccion y control de obras residenciales, comerciales e institucionales.",
+    title: "Construccion de casas y edificios",
+    text: "Ejecutamos proyectos residenciales, comerciales y de edificacion con coordinacion tecnica y control por etapas.",
   },
   {
     id: "srv-2",
-    title: "Desarrollo de edificios",
-    text: "Ejecucion de edificios multifamiliares y desarrollos verticales con lectura clara de unidades y tipologias.",
+    title: "Arquitectura y desarrollo de planos",
+    text: "Trabajamos anteproyectos, planos arquitectonicos, distribucion funcional y documentacion base para construir con claridad.",
   },
   {
     id: "srv-3",
-    title: "Supervision y avances",
-    text: "Seguimiento tecnico, control de calidad, registro de avances y coordinacion en obra.",
+    title: "Remodelaciones y ampliaciones",
+    text: "Intervenimos viviendas, oficinas y locales existentes para renovar espacios, ampliar areas y mejorar su funcionamiento.",
   },
   {
     id: "srv-4",
-    title: "Remodelacion y ampliacion",
-    text: "Intervenimos viviendas, locales y espacios existentes con soluciones funcionales y buen criterio constructivo.",
+    title: "Interiores y acabados",
+    text: "Desarrollamos propuestas de interiorismo, materiales, revestimientos y detalles finales para elevar la experiencia del espacio.",
+  },
+  {
+    id: "srv-5",
+    title: "Supervision tecnica de obra",
+    text: "Hacemos seguimiento de avances, control de calidad, coordinacion de obra y resolucion tecnica durante la ejecucion.",
+  },
+  {
+    id: "srv-6",
+    title: "Presupuestos y cotizaciones",
+    text: "Revisamos planos, ideas iniciales o requerimientos del cliente para preparar cotizaciones claras segun el alcance del proyecto.",
   },
 ];
 
@@ -73,26 +83,26 @@ const processSteps: ProcessStep[] = [
   {
     id: "process-1",
     order: "01",
-    title: "Planificacion",
-    text: "Estudiamos el alcance del proyecto, el presupuesto y la estrategia constructiva.",
+    title: "Diagnostico y alcance",
+    text: "Revisamos necesidades, planos, medidas y objetivos para definir una ruta tecnica clara desde el inicio.",
   },
   {
     id: "process-2",
     order: "02",
-    title: "Ejecucion",
-    text: "Desarrollamos la obra con control tecnico, coordinacion en campo y seguimiento continuo.",
+    title: "Propuesta y cotizacion",
+    text: "Armamos la propuesta de trabajo, el presupuesto y la estrategia de desarrollo segun el tipo de servicio.",
   },
   {
     id: "process-3",
     order: "03",
-    title: "Supervision",
-    text: "Cuidamos calidad, tiempos, avances y resolucion de detalles durante cada etapa.",
+    title: "Ejecucion y supervision",
+    text: "Desarrollamos la obra o intervencion con seguimiento tecnico, control de calidad y acompanamiento continuo.",
   },
   {
     id: "process-4",
     order: "04",
-    title: "Entrega",
-    text: "Cerramos con orden, documentacion y acompanamiento para la puesta en marcha del proyecto.",
+    title: "Entrega y cierre",
+    text: "Cerramos con orden, revision final y acompanamiento para dejar el proyecto listo para su uso.",
   },
 ];
 
@@ -323,27 +333,27 @@ const testimonials: TestimonialItem[] = [
 const faqs: FaqItem[] = [
   {
     id: "faq-1",
-    question: "Que tipo de proyectos desarrolla Mondoza?",
+    question: "Que servicios ofrece Mondoza actualmente?",
     answer:
-      "Trabajamos obras residenciales, comerciales, edificios y ampliaciones con seguimiento tecnico, coordinacion en obra y control de avances.",
+      "Ofrecemos construccion, arquitectura, desarrollo de planos, remodelaciones, interiores, supervision tecnica y cotizaciones para proyectos residenciales y comerciales.",
   },
   {
     id: "faq-2",
-    question: "Pueden cotizar una obra desde planos iniciales?",
+    question: "Pueden cotizar desde planos iniciales o una idea base?",
     answer:
-      "Si. Podemos revisar planos preliminares, programa, ubicacion y alcance para orientar una cotizacion inicial o una etapa de presupuesto mas precisa.",
+      "Si. Podemos revisar planos preliminares, referencias, medidas o una idea inicial para orientar una cotizacion acorde al alcance real del proyecto.",
   },
   {
     id: "faq-3",
-    question: "Como se realiza el seguimiento de una obra?",
+    question: "Tambien trabajan remodelaciones parciales e interiores?",
     answer:
-      "El seguimiento se organiza por hitos, avances, registro fotografico, responsables y comunicacion constante segun el tipo de proyecto.",
+      "Si. Podemos intervenir espacios puntuales, remodelaciones integrales, redistribuciones, acabados e interiores segun la necesidad del cliente.",
   },
   {
     id: "faq-4",
-    question: "Tambien manejan edificios con unidades disponibles?",
+    question: "Como manejan el seguimiento y la cotizacion del proyecto?",
     answer:
-      "Si. Podemos mostrar tipologias, disponibilidad, amenidades, planos y datos clave de cada unidad dentro del desarrollo.",
+      "Organizamos el trabajo por etapas, revisamos el alcance tecnico y presentamos una cotizacion clara para luego avanzar con seguimiento y comunicacion constante.",
   },
 ];
 

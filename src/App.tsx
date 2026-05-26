@@ -14,6 +14,13 @@ import {
   Search,
   X,
 } from "lucide-react";
+import {
+  businessAreas,
+  gatewayAreas,
+  networkHighlights,
+  type BusinessAreaContent,
+  type BusinessSlug,
+} from "./data/business-network";
 import { fallbackContent } from "./data/fallback-content";
 import { createLead, loadSiteContent } from "./lib/content";
 import type {
@@ -56,10 +63,19 @@ type DetailState =
   | { kind: "building"; item: BuildingProject }
   | null;
 
+type PublicPage = "hub" | BusinessSlug;
+
 type RouteState =
-  | { kind: "home" }
+  | { kind: "hub" }
+  | { kind: "page"; page: BusinessSlug }
   | { kind: "work"; slug: string }
   | { kind: "building"; slug: string };
+
+type NavLinkItem = {
+  label: string;
+  href: string;
+  onClick?: () => void;
+};
 
 type LeadFormState = {
   firstName: string;
@@ -149,6 +165,15 @@ function parseRoute(): RouteState {
     .split("/")
     .filter(Boolean);
 
+  if (segments[0] === "constructora" && segments[1] === "obras" && segments[2]) {
+    return { kind: "work", slug: segments[2] };
+  }
+
+  if (segments[0] === "constructora" && segments[1] === "edificios" && segments[2]) {
+    return { kind: "building", slug: segments[2] };
+  }
+
+  // Legacy public detail routes are still resolved and redirected to /constructora.
   if (segments[0] === "obras" && segments[1]) {
     return { kind: "work", slug: segments[1] };
   }
@@ -157,11 +182,29 @@ function parseRoute(): RouteState {
     return { kind: "building", slug: segments[1] };
   }
 
-  return { kind: "home" };
+  if (segments[0] === "constructora") {
+    return { kind: "page", page: "constructora" };
+  }
+
+  if (segments[0] === "juridico") {
+    return { kind: "page", page: "juridico" };
+  }
+
+  if (segments[0] === "bienes-raices") {
+    return { kind: "page", page: "bienes-raices" };
+  }
+
+  return { kind: "hub" };
+}
+
+function buildPageRoute(page: PublicPage) {
+  return page === "hub" ? "/" : `/${page}`;
 }
 
 function buildRoute(kind: "work" | "building", slug: string) {
-  return kind === "work" ? `/obras/${slug}` : `/edificios/${slug}`;
+  return kind === "work"
+    ? `/constructora/obras/${slug}`
+    : `/constructora/edificios/${slug}`;
 }
 
 function detectAppleMobileSafari() {
@@ -229,6 +272,10 @@ function HeroSection({
   location,
   onOpenCatalog,
   onOpenContact,
+  primaryLabel = "Ver catalogo",
+  secondaryLabel = "Solicitar cotizacion",
+  coverageLabel = "Cobertura",
+  coverageDescription = "Atendemos proyectos residenciales, comerciales y de edificacion con seguimiento tecnico y presencia de obra.",
 }: {
   companyName: string;
   heroEyebrow: string;
@@ -240,6 +287,10 @@ function HeroSection({
   location: string;
   onOpenCatalog: () => void;
   onOpenContact: () => void;
+  primaryLabel?: string;
+  secondaryLabel?: string;
+  coverageLabel?: string;
+  coverageDescription?: string;
 }) {
   return (
     <div className="relative min-h-[100svh] overflow-hidden sm:min-h-screen">
@@ -272,7 +323,7 @@ function HeroSection({
 
         <div className="mt-6 flex flex-col gap-2.5 sm:mt-7 sm:flex-row sm:gap-3">
           <Button className="w-full sm:w-auto" onClick={onOpenCatalog}>
-            Ver catalogo
+            {primaryLabel}
             <ArrowUpRight className="ml-2 h-4 w-4" />
           </Button>
           <Button
@@ -280,20 +331,20 @@ function HeroSection({
             className="w-full sm:w-auto"
             onClick={onOpenContact}
           >
-            Solicitar cotizacion
+            {secondaryLabel}
           </Button>
         </div>
       </div>
 
       <div className="absolute bottom-4 left-4 right-4 rounded-[1.6rem] border border-white/15 bg-black/30 p-3.5 backdrop-blur-2xl sm:left-auto sm:right-8 sm:bottom-8 sm:w-[360px] sm:rounded-[1.8rem] sm:p-6">
         <p className="text-[11px] uppercase tracking-[0.26em] text-[#FFDC63]">
-          Cobertura
+          {coverageLabel}
         </p>
         <h2 className="mt-2 text-xl font-semibold text-white sm:mt-3 sm:text-2xl">
           {location}
         </h2>
         <p className="mt-2 hidden text-sm leading-6 text-stone-300 sm:block">
-          Atendemos proyectos residenciales, comerciales y de edificacion con seguimiento tecnico y presencia de obra.
+          {coverageDescription}
         </p>
       </div>
     </div>
@@ -398,9 +449,15 @@ function CatalogCard({
   );
 }
 
-function ServiceCard({ service }: { service: ServiceItem }) {
+function ServiceCard({
+  service,
+  iconIndex = 0,
+}: {
+  service: ServiceItem;
+  iconIndex?: number;
+}) {
   const serviceIcons = [Building2, Layers3, ClipboardList, ShieldCheck];
-  const Icon = serviceIcons[Math.abs(service.id.length) % serviceIcons.length];
+  const Icon = serviceIcons[Math.abs(iconIndex) % serviceIcons.length];
 
   return (
     <div className="gsap-reveal rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-4 text-stone-100 shadow-xl shadow-black/20 backdrop-blur-xl sm:rounded-[2rem] sm:p-6">
@@ -494,7 +551,7 @@ function TestimonialCard({ item }: { item: TestimonialItem }) {
         <p className="font-semibold text-white">{item.name}</p>
         <p className="mt-1 text-sm text-stone-400">
           {item.role}
-          {item.company ? ` · ${item.company}` : ""}
+          {item.company ? ` | ${item.company}` : ""}
         </p>
       </div>
     </div>
@@ -525,7 +582,7 @@ function FaqCard({
               : "border-white/10 bg-white/[0.05] text-stone-300"
           }`}
         >
-          {open ? "−" : "+"}
+          {open ? "-" : "+"}
         </span>
       </button>
       {open ? (
@@ -542,9 +599,11 @@ function FaqCard({
 function QuoteFloatingButton({
   onClick,
   hidden = false,
+  label = "Pedir cotizacion",
 }: {
   onClick: () => void;
   hidden?: boolean;
+  label?: string;
 }) {
   return (
     <button
@@ -554,7 +613,7 @@ function QuoteFloatingButton({
         hidden ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
-      Pedir cotizacion
+      {label}
       <ArrowUpRight className="ml-2 h-4 w-4" />
     </button>
   );
@@ -572,6 +631,10 @@ function QuoteModal({
   successMessage,
   contextLabel,
   isAppleMobileSafari,
+  title = "Solicita una cotizacion",
+  description = "Comparte tus datos, ciudad y lo que necesitas. Nuestro equipo revisara tu solicitud y te contactara a la brevedad.",
+  messagePlaceholder = "Cuentanos sobre tu proyecto, planos, remodelacion o requerimiento",
+  successTitle = "Gracias por contactar con Construcciones Mondoza",
 }: {
   open: boolean;
   onClose: () => void;
@@ -584,6 +647,10 @@ function QuoteModal({
   successMessage: string;
   contextLabel: string;
   isAppleMobileSafari: boolean;
+  title?: string;
+  description?: string;
+  messagePlaceholder?: string;
+  successTitle?: string;
 }) {
   return (
     <AnimatePresence>
@@ -649,7 +716,7 @@ function QuoteModal({
                   />
                 </div>
                 <h3 className="mt-6 text-3xl font-semibold tracking-[-0.04em] text-white">
-                  Gracias por contactar con Construcciones Mondoza
+                  {successTitle}
                 </h3>
                 <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-stone-300">
                   {successMessage || "Nos pondremos en contacto lo mas antes posible para ayudarte con tu proyecto."}
@@ -667,10 +734,10 @@ function QuoteModal({
                 <div>
                   <StatusPill tone="brand">{contextLabel}</StatusPill>
                   <h3 className="mt-5 text-3xl font-semibold tracking-[-0.04em] text-white">
-                    Solicita una cotizacion
+                    {title}
                   </h3>
                   <p className="mt-4 leading-7 text-stone-300">
-                    Comparte tus datos, ciudad y lo que necesitas. Nuestro equipo revisara tu solicitud y te contactara a la brevedad.
+                    {description}
                   </p>
                 </div>
 
@@ -727,7 +794,7 @@ function QuoteModal({
                   <textarea
                     value={form.message}
                     onChange={(event) => onChange("message", event.target.value)}
-                    placeholder="Cuéntanos sobre tu obra, edificio, unidad o requerimiento"
+                    placeholder={messagePlaceholder}
                     className="min-h-36 rounded-[1.5rem] border border-white/10 bg-white/[0.06] px-4 py-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
                     required
                   />
@@ -801,7 +868,7 @@ function MobileMenu({
 
             <div className="flex flex-1 flex-col justify-between">
               <div className="space-y-2">
-                {links.map((link, index) => (
+                  {links.map((link, index) => (
                   <motion.a
                     key={`${link.label}-${index}`}
                     href={link.href}
@@ -812,8 +879,10 @@ function MobileMenu({
                       delay: isAppleMobileSafari ? index * 0.03 : index * 0.05,
                     }}
                     onClick={(event) => {
-                      link.onClick?.();
-                      if (link.href.startsWith("#")) {
+                      if (link.onClick) {
+                        event.preventDefault();
+                        link.onClick();
+                      } else if (link.href.startsWith("#")) {
                         event.preventDefault();
                         document.querySelector(link.href)?.scrollIntoView({
                           behavior: "smooth",
@@ -859,6 +928,566 @@ function MobileMenu({
         </motion.aside>
       )}
     </AnimatePresence>
+  );
+}
+
+function NetworkAreaCard({
+  area,
+  onNavigate,
+}: {
+  area: (typeof gatewayAreas)[number];
+  onNavigate: (page: BusinessSlug) => void;
+}) {
+  return (
+    <article className="gsap-reveal group overflow-hidden rounded-[1.9rem] border border-white/10 bg-white/[0.045] shadow-2xl shadow-black/25 backdrop-blur-xl">
+      <div className="relative h-56 overflow-hidden sm:h-64">
+        <img
+          src={area.image}
+          alt={area.title}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.3)_45%,rgba(0,0,0,0.78)_100%)]" />
+        <div className="absolute left-5 top-5">
+          <StatusPill tone="brand">{area.eyebrow}</StatusPill>
+        </div>
+      </div>
+      <div className="p-5 sm:p-6">
+        <h3 className="text-2xl font-semibold tracking-[-0.04em] text-white sm:text-3xl">
+          {area.title}
+        </h3>
+        <p className="mt-3 text-sm leading-6 text-stone-300 sm:text-base sm:leading-7">
+          {area.description}
+        </p>
+        <p className="mt-4 text-sm leading-6 text-stone-500">{area.detail}</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          {area.bullets.map((bullet) => (
+            <span
+              key={bullet}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-stone-300"
+            >
+              {bullet}
+            </span>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => onNavigate(area.slug)}
+          className="mt-6 inline-flex h-12 items-center justify-center rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black"
+        >
+          Ir a {area.eyebrow.toLowerCase()}
+          <ArrowUpRight className="ml-2 h-4 w-4" />
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function SharedContactSection({
+  title,
+  description,
+  contact,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  description: string;
+  contact: SiteContent["settings"]["contact"];
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <section id="contacto" className="px-5 pb-8 pt-12 sm:pt-20 md:px-8">
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-[2.2rem] border border-white/10 bg-[#FFDC63] text-black shadow-2xl shadow-black/40 sm:rounded-[3rem]">
+        <div className="grid gap-6 p-4 sm:p-8 md:p-12 lg:grid-cols-[1.05fr_.95fr] lg:gap-8 lg:p-16">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.28em] text-black/55 sm:text-sm sm:tracking-[0.32em]">
+              Contacto
+            </p>
+            <h2 className="mt-4 max-w-3xl text-3xl font-semibold tracking-[-0.06em] sm:text-4xl md:text-6xl">
+              {title}
+            </h2>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-black/70 sm:mt-6 sm:text-lg sm:leading-8">
+              {description}
+            </p>
+
+            <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
+              <div className="rounded-[1.5rem] bg-black/10 p-4">
+                <Phone className="h-5 w-5 text-black/70" />
+                <p className="mt-3 text-sm uppercase tracking-[0.22em] text-black/45">
+                  Telefono principal
+                </p>
+                <p className="mt-2 text-lg font-semibold">{contact.phone}</p>
+              </div>
+              <div className="rounded-[1.5rem] bg-black/10 p-4">
+                <MessageSquare className="h-5 w-5 text-black/70" />
+                <p className="mt-3 text-sm uppercase tracking-[0.22em] text-black/45">
+                  Email
+                </p>
+                <p className="mt-2 text-lg font-semibold">{contact.email}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-[1.6rem] bg-black/10 p-4 backdrop-blur-xl sm:rounded-[1.8rem] sm:p-6">
+            <p className="text-sm uppercase tracking-[0.22em] text-black/45">
+              Sucursales
+            </p>
+            <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] sm:mt-4 sm:text-3xl">
+              Estamos listos para derivarte al area correcta
+            </h3>
+            <p className="mt-3 text-sm leading-6 text-black/70 sm:mt-4 sm:text-base sm:leading-7">
+              Podemos recibir tu consulta desde la landing madre o desde cualquiera de las verticales y ordenarla segun el tipo de servicio.
+            </p>
+
+            <div className="mt-5 grid gap-3 sm:mt-6 sm:gap-4">
+              {contact.branches.map((branch) => (
+                <div
+                  key={branch.id}
+                  className="rounded-[1.2rem] bg-black/10 p-3.5 sm:rounded-[1.4rem] sm:p-4"
+                >
+                  <p className="text-sm uppercase tracking-[0.22em] text-black/45">
+                    {branch.name}
+                  </p>
+                  <p className="mt-2 text-base font-semibold sm:text-lg">{branch.address}</p>
+                  <p className="mt-2 text-sm text-black/70">{branch.phone}</p>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={onAction}
+              className="mt-8 inline-flex h-[52px] items-center justify-center rounded-full bg-black px-6 text-base font-medium text-white"
+            >
+              {actionLabel}
+              <ArrowUpRight className="ml-2 h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SharedFooter({
+  title,
+  blurb,
+  location,
+  contact,
+}: {
+  title: string;
+  blurb: string;
+  location: string;
+  contact: SiteContent["settings"]["contact"];
+}) {
+  return (
+    <footer className="px-5 pb-8 pt-8 md:px-8">
+      <div className="mx-auto grid max-w-7xl gap-6 rounded-[1.8rem] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl md:grid-cols-[1.2fr_0.8fr] md:gap-8 md:rounded-[2rem] md:p-8">
+        <div>
+          <BrandLockup className="justify-start" />
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-stone-300 sm:text-lg sm:leading-8">
+            {blurb}
+          </p>
+          <p className="mt-3 text-sm uppercase tracking-[0.24em] text-stone-500">{title}</p>
+          <p className="mt-2 text-sm uppercase tracking-[0.24em] text-stone-500">{location}</p>
+          <a
+            href="/cms"
+            className="mt-6 inline-flex h-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-4 text-sm font-medium text-white"
+          >
+            Login
+          </a>
+        </div>
+        <div className="text-sm text-stone-400">
+          <div className="grid gap-3 md:hidden">
+            <p className="font-medium text-white">{contact.branches.length} sucursales activas</p>
+            <p className="inline-flex items-center gap-2">
+              <Phone className="h-4 w-4 text-[#FFDC63]" />
+              {contact.phone}
+            </p>
+            <p className="inline-flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-[#FFDC63]" />
+              {contact.email}
+            </p>
+          </div>
+          <div className="hidden gap-4 md:grid">
+            {contact.branches.map((branch) => (
+              <div key={branch.id} className="grid gap-2">
+                <p className="font-medium text-white">{branch.name}</p>
+                <p className="inline-flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-[#FFDC63]" />
+                  {branch.address}
+                </p>
+                <p className="inline-flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-[#FFDC63]" />
+                  {branch.phone}
+                </p>
+              </div>
+            ))}
+            <p className="inline-flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-[#FFDC63]" />
+              {contact.email}
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function HubLandingScreen({
+  companyName,
+  location,
+  contact,
+  onNavigate,
+  onOpenContact,
+}: {
+  companyName: string;
+  location: string;
+  contact: SiteContent["settings"]["contact"];
+  onNavigate: (page: BusinessSlug) => void;
+  onOpenContact: () => void;
+}) {
+  return (
+    <motion.div
+      key="hub"
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -18 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <section id="inicio" className="px-5 pb-14 pt-28 sm:pt-32 md:px-8 md:pb-20">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-end">
+          <div>
+            <StatusPill tone="brand">Landing madre</StatusPill>
+            <p className="mt-6 text-[11px] uppercase tracking-[0.34em] text-[#FFDC63] sm:text-sm">
+              Grupo Mondoza
+            </p>
+            <h1 className="mt-4 text-[3rem] font-semibold leading-[0.92] tracking-[-0.08em] text-white sm:text-7xl md:text-8xl">
+              Un grupo,
+              <span className="block [font-family:Georgia,serif] text-[0.88em] italic font-normal tracking-[-0.06em] text-[#f7efe4]">
+                tres unidades claras
+              </span>
+            </h1>
+            <p className="mt-5 max-w-2xl text-sm leading-6 text-stone-300 sm:text-lg sm:leading-8">
+              Desde aqui el cliente puede elegir si necesita construir, recibir respaldo legal o mover una oportunidad inmobiliaria sin sentir que todo esta mezclado.
+            </p>
+
+            <div className="mt-7 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
+              <Button className="w-full sm:w-auto" onClick={() => onNavigate("constructora")}>
+                Ir a constructora
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() =>
+                  document.getElementById("areas")?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  })
+                }
+              >
+                Ver unidades
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/25 backdrop-blur-xl sm:p-7">
+            <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFDC63] sm:text-sm">
+              Modelo de marca
+            </p>
+            <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+              Cada frente con su propia landing y una lectura comun del negocio.
+            </h2>
+            <div className="mt-6 grid gap-3">
+              {networkHighlights.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-[1.4rem] border border-white/10 bg-black/20 p-4"
+                >
+                  <p className="text-sm font-semibold text-white">{item.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-stone-400">{item.text}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 rounded-[1.4rem] border border-[#FFDC63]/20 bg-[#FFDC63]/10 p-4 text-sm leading-6 text-stone-200">
+              {companyName} puede crecer por verticales sin perder coherencia, y despues escalar cada area a su propio CMS y a sus propios roles.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="areas" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+        <div className="mx-auto max-w-7xl">
+          <SectionHeading
+            eyebrow="Unidades"
+            title="Elige el frente que mejor responde a la necesidad del cliente."
+            description={
+              <ResponsiveCopy
+                mobile="Tres entradas claras para no mezclar mensajes."
+                desktop="Cada unidad de negocio conserva su propia presentacion, pero se beneficia de una estructura comun y una marca mejor organizada."
+              />
+            }
+          />
+
+          <div className="mt-8 grid gap-4 sm:mt-12 lg:grid-cols-3">
+            {gatewayAreas.map((area) => (
+              <NetworkAreaCard key={area.slug} area={area} onNavigate={onNavigate} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="modelo" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+          <div>
+            <SectionHeading
+              eyebrow="Estructura"
+              title="Una sola plataforma, varias vistas especializadas."
+              description={
+                <ResponsiveCopy
+                  mobile="Hoy construimos las landings; luego escalamos el CMS por roles."
+                  desktop="La arquitectura puede arrancar con vistas publicas diferenciadas y escalar luego a dashboards separados para constructora, juridico y bienes raices."
+                />
+              }
+            />
+          </div>
+
+          <div className="grid gap-4">
+            <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Ahora</p>
+              <h3 className="mt-3 text-2xl font-semibold text-white">
+                Landings conectadas y entrada mas clara al negocio.
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">
+                El usuario entra por una portada general, elige su area y recibe una narrativa mas precisa del servicio.
+              </p>
+            </div>
+            <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Despues</p>
+              <h3 className="mt-3 text-2xl font-semibold text-white">
+                CMS y roles separados por vertical.
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">
+                El abogado entra a lo juridico, el equipo comercial al inmobiliario y la constructora sigue administrando obras, edificios y cotizaciones.
+              </p>
+            </div>
+            <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
+              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Beneficio</p>
+              <h3 className="mt-3 text-2xl font-semibold text-white">
+                Leads con mejor contexto desde el primer contacto.
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">
+                Cada consulta nace ya clasificada por area y eso luego ayuda mucho cuando conectemos formularios, paneles y seguimiento.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <SharedContactSection
+        title="Conversemos sobre el frente que necesitas activar."
+        description="Si aun no tienes claro si tu caso corresponde a constructora, juridico o bienes raices, podemos ayudarte a derivarlo correctamente."
+        contact={contact}
+        actionLabel="Hablar con el equipo"
+        onAction={onOpenContact}
+      />
+
+      <SharedFooter
+        title="Landing madre"
+        blurb="Una portada principal para ordenar la marca y derivar cada consulta al frente correcto."
+        location={location}
+        contact={contact}
+      />
+    </motion.div>
+  );
+}
+
+function BusinessLandingScreen({
+  area,
+  location,
+  contact,
+  onOpenContact,
+  openFaqId,
+  onToggleFaq,
+}: {
+  area: BusinessAreaContent;
+  location: string;
+  contact: SiteContent["settings"]["contact"];
+  onOpenContact: () => void;
+  openFaqId: string | null;
+  onToggleFaq: (id: string) => void;
+}) {
+  return (
+    <motion.div
+      key={area.slug}
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -18 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <section id="inicio" className="relative min-h-screen">
+        <HeroSection
+          companyName={area.label}
+          heroEyebrow={area.eyebrow}
+          heroTitle={area.title}
+          heroAccent={area.accent}
+          heroDescription={area.description}
+          heroImage={area.image}
+          tagline={area.tagline}
+          location={area.coverage}
+          onOpenCatalog={() =>
+            document.getElementById("servicios")?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            })
+          }
+          onOpenContact={onOpenContact}
+          primaryLabel={area.primaryLabel}
+          secondaryLabel={area.secondaryLabel}
+          coverageLabel="Cobertura"
+          coverageDescription={area.coverageDescription}
+        />
+      </section>
+
+      <section id="servicios" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-8 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between md:gap-6">
+            <SectionHeading
+              eyebrow="Servicios"
+              title={`Servicios de ${area.label.toLowerCase()} con enfoque aplicado.`}
+              description={
+                <ResponsiveCopy
+                  mobile="Bloques claros para explicar el alcance del servicio."
+                  desktop="La landing presenta el frente con un mensaje mas concreto, mas facil de entender y listo para escalar luego a su propio CMS."
+                />
+              }
+            />
+            <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-stone-300 backdrop-blur-xl">
+              {area.coverage}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {area.services.map((service, index) => (
+              <ServiceCard key={service.id} service={service} iconIndex={index} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="enfoque" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+        <div className="mx-auto max-w-7xl">
+          <SectionHeading
+            eyebrow="Enfoque"
+            title="Una vertical con discurso propio, pero conectada al ecosistema."
+            description={
+              <ResponsiveCopy
+                mobile="No es una seccion improvisada dentro de la constructora."
+                desktop="Se presenta como una unidad con voz propia, sin perder el valor de estar conectada al resto de la operacion."
+              />
+            }
+          />
+
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {area.highlights.map((item) => (
+              <div
+                key={item.id}
+                className="gsap-reveal rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20 backdrop-blur-xl sm:rounded-[2rem] sm:p-6"
+              >
+                <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">{area.label}</p>
+                <h3 className="mt-3 text-xl font-semibold text-white sm:text-2xl">{item.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">
+                  {item.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="proceso" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+        <div className="mx-auto grid max-w-7xl gap-7 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-10">
+          <div>
+            <SectionHeading
+              eyebrow="Proceso"
+              title="Una forma de trabajo clara para esta unidad."
+              description={
+                <ResponsiveCopy
+                  mobile="Paso a paso desde la consulta hasta el cierre."
+                  desktop="Cada vertical puede explicar su propio proceso sin mezclarse con los flujos de las otras areas."
+                />
+              }
+            />
+          </div>
+
+          <div className="relative rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-4 shadow-2xl shadow-black/30 backdrop-blur-xl sm:rounded-[3rem] sm:p-5 md:p-8">
+            <div className="absolute -inset-1 -z-10 rounded-[3.2rem] bg-gradient-to-br from-[#FFDC63]/20 via-transparent to-white/5 blur-xl" />
+            {area.process.map((step) => (
+              <div
+                key={step.id}
+                className="gsap-reveal flex gap-3 border-b border-white/10 py-4 last:border-b-0 sm:gap-5 sm:py-6"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl border border-[#FFDC63]/25 bg-[#FFDC63]/10 text-sm font-semibold text-[#FFDC63] sm:h-12 sm:w-12">
+                  {step.order}
+                </span>
+                <div>
+                  <h3 className="text-lg font-semibold sm:text-2xl">{step.title}</h3>
+                  <p className="mt-1.5 text-sm leading-6 text-stone-400 sm:mt-2 sm:text-base sm:leading-7">
+                    {step.text}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:gap-10">
+          <div>
+            <SectionHeading
+              eyebrow="Preguntas frecuentes"
+              title={`Dudas comunes sobre ${area.label.toLowerCase()}.`}
+              description={
+                <ResponsiveCopy
+                  mobile="Resolvemos lo esencial antes del primer paso."
+                  desktop="Estas respuestas ayudan a separar mejor el alcance de cada vertical y a orientar mejor cada consulta."
+                />
+              }
+            />
+          </div>
+
+          <div className="grid gap-3">
+            {area.faqs.map((item) => (
+              <FaqCard
+                key={item.id}
+                item={item}
+                open={openFaqId === item.id}
+                onToggle={() => onToggleFaq(item.id)}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <SharedContactSection
+        title={`Conversemos sobre ${area.label.toLowerCase()}.`}
+        description={area.contactPrompt}
+        contact={contact}
+        actionLabel={area.secondaryLabel}
+        onAction={onOpenContact}
+      />
+
+      <SharedFooter
+        title={area.label}
+        blurb={area.footerBlurb}
+        location={location}
+        contact={contact}
+      />
+    </motion.div>
   );
 }
 
@@ -1337,6 +1966,19 @@ function DetailViewScreen({
 export default function App() {
   const isAppleMobileSafari = useRef(detectAppleMobileSafari()).current;
   const [content, setContent] = useState<SiteContent>(fallbackContent);
+  const [currentPage, setCurrentPage] = useState<PublicPage>(() => {
+    const initialRoute = parseRoute();
+
+    if (initialRoute.kind === "page") {
+      return initialRoute.page;
+    }
+
+    if (initialRoute.kind === "work" || initialRoute.kind === "building") {
+      return "constructora";
+    }
+
+    return "hub";
+  });
   const [detail, setDetail] = useState<DetailState>(null);
   const [activeDetailImage, setActiveDetailImage] = useState<string>(
     fallbackContent.works[0]?.heroImage ?? fallbackContent.buildings[0]?.heroImage ?? ""
@@ -1348,7 +1990,13 @@ export default function App() {
   const [workStatusFilter, setWorkStatusFilter] = useState<"all" | "planificacion" | "en_progreso" | "finalizado">("all");
   const [buildingSearch, setBuildingSearch] = useState("");
   const [buildingFilter, setBuildingFilter] = useState<"all" | "available" | "planificacion" | "en_progreso" | "finalizado">("all");
-  const [openFaqId, setOpenFaqId] = useState<string | null>(fallbackContent.faqs[0]?.id ?? null);
+  const currentArea =
+    currentPage !== "hub" && currentPage !== "constructora"
+      ? businessAreas[currentPage]
+      : null;
+  const currentFaqItems =
+    currentPage === "constructora" ? content.faqs : currentArea?.faqs ?? [];
+  const [openFaqId, setOpenFaqId] = useState<string | null>(currentFaqItems[0]?.id ?? null);
   const [leadContext, setLeadContext] = useState<{
     interestType: LeadPayload["interestType"];
     referenceSlug?: string;
@@ -1402,17 +2050,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!content.faqs.length) {
+    if (!currentFaqItems.length) {
       setOpenFaqId(null);
       return;
     }
 
     setOpenFaqId((current) =>
-      current && content.faqs.some((item) => item.id === current)
+      current && currentFaqItems.some((item) => item.id === current)
         ? current
-        : content.faqs[0].id
+        : currentFaqItems[0].id
     );
-  }, [content.faqs]);
+  }, [currentFaqItems]);
 
   useEffect(() => {
     let lenisInstance: LenisInstance | null = null;
@@ -1565,8 +2213,22 @@ export default function App() {
 
     const currentRoute = parseRoute();
 
-    if (currentRoute.kind === "home") {
-      window.history.replaceState({ kind: "home", app: true }, "", "/");
+    if (currentRoute.kind === "hub") {
+      setCurrentPage("hub");
+      setDetail(null);
+      window.history.replaceState({ kind: "hub", app: true }, "", "/");
+      routeReadyRef.current = true;
+      return;
+    }
+
+    if (currentRoute.kind === "page") {
+      setCurrentPage(currentRoute.page);
+      setDetail(null);
+      window.history.replaceState(
+        { kind: "page", page: currentRoute.page, app: true },
+        "",
+        buildPageRoute(currentRoute.page)
+      );
       routeReadyRef.current = true;
       return;
     }
@@ -1577,13 +2239,20 @@ export default function App() {
         : findBuildingBySlug(currentRoute.slug);
 
     if (!target) {
-      window.history.replaceState({ kind: "home", app: true }, "", "/");
+      setCurrentPage("hub");
+      setDetail(null);
+      window.history.replaceState({ kind: "hub", app: true }, "", "/");
       routeReadyRef.current = true;
       return;
     }
 
+    setCurrentPage("constructora");
     const detailPath = buildRoute(currentRoute.kind, currentRoute.slug);
-    window.history.replaceState({ kind: "home", app: true }, "", "/");
+    window.history.replaceState(
+      { kind: "page", page: "constructora", app: true },
+      "",
+      "/constructora"
+    );
     window.history.pushState(
       { kind: currentRoute.kind, slug: currentRoute.slug, app: true },
       "",
@@ -1608,7 +2277,16 @@ export default function App() {
     const onPopState = () => {
       const currentRoute = parseRoute();
 
-      if (currentRoute.kind === "home") {
+      if (currentRoute.kind === "hub") {
+        setCurrentPage("hub");
+        setDetail(null);
+        setMenuOpen(false);
+        window.scrollTo(0, 0);
+        return;
+      }
+
+      if (currentRoute.kind === "page") {
+        setCurrentPage(currentRoute.page);
         setDetail(null);
         setMenuOpen(false);
         window.scrollTo(0, 0);
@@ -1621,13 +2299,15 @@ export default function App() {
           : findBuildingBySlug(currentRoute.slug);
 
       if (!target) {
+        setCurrentPage("hub");
         setDetail(null);
-        window.history.replaceState({ kind: "home", app: true }, "", "/");
+        window.history.replaceState({ kind: "hub", app: true }, "", "/");
         window.scrollTo(0, 0);
         return;
       }
 
       setMenuOpen(false);
+      setCurrentPage("constructora");
       setDetail(
         currentRoute.kind === "work"
           ? { kind: "work", item: target as WorkProject }
@@ -1643,6 +2323,18 @@ export default function App() {
       window.removeEventListener("popstate", onPopState);
     };
   }, [content, loadingContent]);
+
+  const navigateToPage = (page: PublicPage) => {
+    setMenuOpen(false);
+    setDetail(null);
+    setCurrentPage(page);
+    window.history.pushState(
+      page === "hub" ? { kind: "hub", app: true } : { kind: "page", page, app: true },
+      "",
+      buildPageRoute(page)
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const heroOpenCatalog = () => {
     document.getElementById("obras")?.scrollIntoView({
@@ -1687,7 +2379,7 @@ export default function App() {
 
   const closeDetail = () => {
     setMenuOpen(false);
-    if (parseRoute().kind !== "home") {
+    if (parseRoute().kind !== "page" && parseRoute().kind !== "hub") {
       window.history.back();
       return;
     }
@@ -1706,7 +2398,57 @@ export default function App() {
     });
   };
 
-  const navLinks = detail
+  const activeLeadAreaLabel =
+    currentPage === "hub"
+      ? "Landing madre"
+      : currentPage === "constructora"
+        ? "Constructora"
+        : currentPage === "juridico"
+          ? "Estudio juridico"
+          : "Bienes raices";
+
+  const quoteModalCopy =
+    currentPage === "juridico"
+      ? {
+          title: "Solicita asesoria legal",
+          description:
+            "Comparte tus datos, ciudad y el contexto de tu consulta. Revisaremos si corresponde a contratos, permisos, regularizacion o soporte legal inmobiliario.",
+          messagePlaceholder:
+            "Cuentanos sobre tu consulta legal, documentos, tramite o situacion inmobiliaria",
+          successTitle: "Gracias por contactar con el estudio juridico",
+          floatingLabel: "Solicitar asesoria",
+        }
+      : currentPage === "bienes-raices"
+        ? {
+            title: "Solicita orientacion inmobiliaria",
+            description:
+              "Comparte tus datos, ciudad y el tipo de oportunidad que quieres mover. Podemos ayudarte a ordenar la salida comercial del caso.",
+            messagePlaceholder:
+              "Cuentanos sobre el inmueble, desarrollo, compra, venta o necesidad comercial",
+            successTitle: "Gracias por contactar con bienes raices",
+            floatingLabel: "Solicitar orientacion",
+          }
+        : currentPage === "hub"
+          ? {
+              title: "Solicita orientacion inicial",
+              description:
+                "Comparte tus datos, ciudad y lo que necesitas. Derivaremos tu consulta al frente correcto entre constructora, juridico y bienes raices.",
+              messagePlaceholder:
+                "Cuentanos si necesitas construir, respaldo legal o mover una oportunidad inmobiliaria",
+              successTitle: "Gracias por contactar con el grupo",
+              floatingLabel: "Hablar con el equipo",
+            }
+          : {
+              title: "Solicita una cotizacion",
+              description:
+                "Comparte tus datos, ciudad y lo que necesitas. Nuestro equipo revisara tu solicitud y te contactara a la brevedad.",
+              messagePlaceholder:
+                "Cuentanos sobre tu proyecto, planos, remodelacion o requerimiento",
+              successTitle: "Gracias por contactar con Construcciones Mondoza",
+              floatingLabel: "Pedir cotizacion",
+            };
+
+  const navLinks: NavLinkItem[] = detail
     ? [
         { label: "Resumen", href: "#detalle-resumen" },
         { label: "Galeria", href: "#detalle-galeria" },
@@ -1718,13 +2460,27 @@ export default function App() {
           ? [{ label: "Mapa", href: "#detalle-mapa" }]
           : []),
       ]
-    : [
-        { label: "Servicios", href: "#servicios" },
-        { label: "Obras", href: "#obras" },
-        { label: "Edificios", href: "#edificios" },
-        { label: "Nosotros", href: "#nosotros" },
-        { label: "Contacto", href: "#contacto" },
-      ];
+    : currentPage === "hub"
+      ? [
+          { label: "Unidades", href: "#areas" },
+          { label: "Estructura", href: "#modelo" },
+          { label: "Contacto", href: "#contacto" },
+        ]
+      : currentPage === "constructora"
+        ? [
+            { label: "Servicios", href: "#servicios" },
+            { label: "Obras", href: "#obras" },
+            { label: "Edificios", href: "#edificios" },
+            { label: "Nosotros", href: "#nosotros" },
+            { label: "Contacto", href: "#contacto" },
+          ]
+        : [
+            { label: "Servicios", href: "#servicios" },
+            { label: "Enfoque", href: "#enfoque" },
+            { label: "Proceso", href: "#proceso" },
+            { label: "FAQ", href: "#faq" },
+            { label: "Contacto", href: "#contacto" },
+          ];
 
   const visibleWorks = content.works.filter((item) => {
     const matchesSearch = `${item.title} ${item.location} ${item.category}`
@@ -1762,7 +2518,7 @@ export default function App() {
         fullName: `${leadForm.firstName} ${leadForm.lastName}`.trim(),
         phone: leadForm.phone,
         email: leadForm.email,
-        message: `Ciudad: ${leadForm.city}\n${leadForm.message}`,
+        message: `Area: ${activeLeadAreaLabel}\nCiudad: ${leadForm.city}\n${leadForm.message}`,
         interestType: leadContext.interestType,
         referenceSlug: leadContext.referenceSlug,
         unitLabel: leadContext.unitLabel,
@@ -1780,7 +2536,7 @@ export default function App() {
       setLeadState({
         loading: false,
         message:
-          "Nos pondremos en contacto lo mas antes posible con una propuesta adecuada para tu proyecto.",
+          "Nos pondremos en contacto lo mas antes posible para revisar tu solicitud y orientarte en el siguiente paso.",
         error: false,
       });
     } catch (error) {
@@ -1901,7 +2657,7 @@ export default function App() {
                     : "border border-white/35 bg-white/10 text-white backdrop-blur-2xl hover:bg-white/[0.16]"
                 }`}
               >
-                Cotizar obra
+                {quoteModalCopy.floatingLabel}
                 <ArrowUpRight className="ml-2 h-4 w-4" />
               </button>
             </div>
@@ -1933,9 +2689,9 @@ export default function App() {
           href: link.href,
           onClick: link.href === "#detalle-hero" ? closeDetail : undefined,
         }))}
-        actionLabel={detail ? "Volver" : "Login"}
-        actionHref={detail ? "#detalle-hero" : "/cms"}
-        actionOnClick={detail ? closeDetail : undefined}
+        actionLabel={detail ? "Volver" : quoteModalCopy.floatingLabel}
+        actionHref={detail ? "#detalle-hero" : "#contacto"}
+        actionOnClick={detail ? closeDetail : () => openLeadContext("general")}
         isAppleMobileSafari={isAppleMobileSafari}
       />
 
@@ -1953,11 +2709,16 @@ export default function App() {
         successMessage={leadState.message}
         contextLabel={interestTypeLabel(leadContext.interestType, leadContext.unitLabel)}
         isAppleMobileSafari={isAppleMobileSafari}
+        title={quoteModalCopy.title}
+        description={quoteModalCopy.description}
+        messagePlaceholder={quoteModalCopy.messagePlaceholder}
+        successTitle={quoteModalCopy.successTitle}
       />
 
       <QuoteFloatingButton
         onClick={() => openLeadContext("general")}
         hidden={menuOpen || quoteModalOpen}
+        label={quoteModalCopy.floatingLabel}
       />
 
       <main className="relative z-10">
@@ -1970,9 +2731,17 @@ export default function App() {
               onBack={closeDetail}
               onLeadIntent={openLeadContext}
             />
-          ) : (
+          ) : currentPage === "hub" ? (
+            <HubLandingScreen
+              companyName={content.settings.companyName}
+              location={content.settings.location}
+              contact={content.settings.contact}
+              onNavigate={navigateToPage}
+              onOpenContact={() => openLeadContext("general")}
+            />
+          ) : currentPage === "constructora" ? (
             <motion.div
-              key="landing"
+              key="constructora"
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -18 }}
@@ -2076,11 +2845,11 @@ export default function App() {
                   <div className="mb-8 flex flex-col gap-4 md:mb-12 md:flex-row md:items-end md:justify-between md:gap-6">
                     <SectionHeading
                       eyebrow="Servicios"
-                      title="Servicios pensados para construir bien y acompanar mejor."
+                      title="Construccion, arquitectura, remodelacion e interiores con enfoque tecnico."
                       description={
                         <ResponsiveCopy
-                          mobile="Planificacion, ejecucion y supervision con enfoque practico."
-                          desktop="Planificamos, ejecutamos y supervisamos proyectos con una mirada practica, tecnica y cercana al cliente."
+                          mobile="Planos, obra, remodelaciones e interiores con cotizacion personalizada."
+                          desktop="Abarcamos construccion, arquitectura, remodelaciones e interiores con una mirada practica, tecnica y cercana al cliente."
                         />
                       }
                     />
@@ -2090,8 +2859,8 @@ export default function App() {
                   </div>
 
                   <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {content.services.map((service) => (
-                      <ServiceCard key={service.id} service={service} />
+                    {content.services.map((service, index) => (
+                      <ServiceCard key={service.id} service={service} iconIndex={index} />
                     ))}
                   </div>
                 </div>
@@ -2260,8 +3029,8 @@ export default function App() {
                       title="Respuestas claras antes de iniciar."
                       description={
                         <ResponsiveCopy
-                          mobile="Resolvemos dudas comunes sobre cotizacion, seguimiento y desarrollo."
-                          desktop="Resolvemos dudas comunes sobre cotizacion, seguimiento de obra, edificios y coordinacion general del proyecto."
+                          mobile="Resolvemos dudas comunes sobre cotizacion, planos y seguimiento."
+                          desktop="Resolvemos dudas comunes sobre cotizacion, arquitectura, remodelaciones, seguimiento y coordinacion general del proyecto."
                         />
                       }
                     />
@@ -2294,8 +3063,8 @@ export default function App() {
                       </h2>
                       <p className="mt-4 max-w-2xl text-sm leading-6 text-black/70 sm:mt-6 sm:text-lg sm:leading-8">
                         <ResponsiveCopy
-                          mobile="Cuéntanos tu proyecto y te ayudamos a revisar alcance y cotizacion."
-                          desktop="Si estas planificando una obra, un edificio o una ampliacion, podemos ayudarte a revisar el alcance y preparar una cotizacion."
+                          mobile="Cuentanos tu idea y te ayudamos a revisar alcance y cotizacion."
+                          desktop="Si estas planificando una construccion, planos, remodelacion o interiores, podemos ayudarte a revisar el alcance y preparar una cotizacion."
                         />
                       </p>
 
@@ -2417,6 +3186,17 @@ export default function App() {
                 </div>
               </footer>
             </motion.div>
+          ) : (
+            <BusinessLandingScreen
+              area={businessAreas[currentPage]}
+              location={content.settings.location}
+              contact={content.settings.contact}
+              onOpenContact={() => openLeadContext("general")}
+              openFaqId={openFaqId}
+              onToggleFaq={(id) =>
+                setOpenFaqId((current) => (current === id ? null : id))
+              }
+            />
           )}
         </AnimatePresence>
       </main>

@@ -107,25 +107,27 @@ insert into public.site_settings (
 values (
   '00000000-0000-0000-0000-000000000001',
   'Mondoza Construcciones Civiles en General',
-  'Construccion civil y edificacion',
+  'Construccion, arquitectura y remodelacion',
   'Construyendo',
   'tus suenos',
-  'Ejecutamos obras civiles, edificios y proyectos residenciales con seguimiento tecnico, criterio constructivo y atencion cercana en cada etapa.',
+  'Desarrollamos construccion, arquitectura, remodelaciones e interiores con seguimiento tecnico y cotizaciones ajustadas al alcance real de cada proyecto.',
   'https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=2400&q=90',
-  'Soluciones constructivas para vivienda, comercio y desarrollo inmobiliario.',
+  'Construccion, planos, remodelacion e interiores para vivienda, comercio y proyectos a medida.',
   'Cochabamba y Santa Cruz, Bolivia',
   '{"phone":"+591 70000000","whatsapp":"+591 70000000","email":"contacto@mondozaconstrucciones.com","address":"Cochabamba, Bolivia","branches":[{"id":"branch-1","name":"Sucursal Cochabamba","address":"Av. America Oeste, Cochabamba, Bolivia","phone":"+591 70000000"},{"id":"branch-2","name":"Sucursal Santa Cruz","address":"Equipetrol Norte, Santa Cruz, Bolivia","phone":"+591 71000000"}]}'::jsonb,
-  '[{"id":"process-1","order":"01","title":"Planificacion","text":"Estudiamos el alcance del proyecto, el presupuesto y la estrategia constructiva."},{"id":"process-2","order":"02","title":"Ejecucion","text":"Desarrollamos la obra con control tecnico, coordinacion en campo y seguimiento continuo."},{"id":"process-3","order":"03","title":"Supervision","text":"Cuidamos calidad, tiempos, avances y resolucion de detalles durante cada etapa."},{"id":"process-4","order":"04","title":"Entrega","text":"Cerramos con orden, documentacion y acompanamiento para la puesta en marcha del proyecto."}]'::jsonb,
+  '[{"id":"process-1","order":"01","title":"Diagnostico y alcance","text":"Revisamos necesidades, planos, medidas y objetivos para definir una ruta tecnica clara desde el inicio."},{"id":"process-2","order":"02","title":"Propuesta y cotizacion","text":"Armamos la propuesta de trabajo, el presupuesto y la estrategia de desarrollo segun el tipo de servicio."},{"id":"process-3","order":"03","title":"Ejecucion y supervision","text":"Desarrollamos la obra o intervencion con seguimiento tecnico, control de calidad y acompanamiento continuo."},{"id":"process-4","order":"04","title":"Entrega y cierre","text":"Cerramos con orden, revision final y acompanamiento para dejar el proyecto listo para su uso."}]'::jsonb,
   '[{"id":"testimonial-1","name":"Carla Camacho","role":"Cliente residencial","company":"Familia Camacho","quote":"Valoramos mucho el orden del proceso, la claridad en los avances y la forma en que el equipo resolvio detalles durante toda la obra."},{"id":"testimonial-2","name":"Jorge Nova","role":"Director comercial","company":"Nova Group","quote":"La ejecucion fue seria y bien coordinada. Tuvimos seguimiento claro, buena comunicacion y una entrega consistente con lo proyectado."},{"id":"testimonial-3","name":"Daniela Ortega","role":"Propietaria","company":"Villa Jardin Sur","quote":"Nos dio confianza ver planos, decisiones y avances con una presentacion ordenada. Se noto experiencia y criterio constructivo."}]'::jsonb,
-  '[{"id":"faq-1","question":"Que tipo de proyectos desarrolla Mondoza?","answer":"Trabajamos obras residenciales, comerciales, edificios y ampliaciones con seguimiento tecnico, coordinacion en obra y control de avances."},{"id":"faq-2","question":"Pueden cotizar una obra desde planos iniciales?","answer":"Si. Podemos revisar planos preliminares, programa, ubicacion y alcance para orientar una cotizacion inicial o una etapa de presupuesto mas precisa."},{"id":"faq-3","question":"Como se realiza el seguimiento de una obra?","answer":"El seguimiento se organiza por hitos, avances, registro fotografico, responsables y comunicacion constante segun el tipo de proyecto."},{"id":"faq-4","question":"Tambien manejan edificios con unidades disponibles?","answer":"Si. Podemos mostrar tipologias, disponibilidad, amenidades, planos y datos clave de cada unidad dentro del desarrollo."}]'::jsonb
+  '[{"id":"faq-1","question":"Que servicios ofrece Mondoza actualmente?","answer":"Ofrecemos construccion, arquitectura, desarrollo de planos, remodelaciones, interiores, supervision tecnica y cotizaciones para proyectos residenciales y comerciales."},{"id":"faq-2","question":"Pueden cotizar desde planos iniciales o una idea base?","answer":"Si. Podemos revisar planos preliminares, referencias, medidas o una idea inicial para orientar una cotizacion acorde al alcance real del proyecto."},{"id":"faq-3","question":"Tambien trabajan remodelaciones parciales e interiores?","answer":"Si. Podemos intervenir espacios puntuales, remodelaciones integrales, redistribuciones, acabados e interiores segun la necesidad del cliente."},{"id":"faq-4","question":"Como manejan el seguimiento y la cotizacion del proyecto?","answer":"Organizamos el trabajo por etapas, revisamos el alcance tecnico y presentamos una cotizacion clara para luego avanzar con seguimiento y comunicacion constante."}]'::jsonb
 );
 
 insert into public.services (id, title, text, display_order)
 values
-  ('00000000-0000-0000-0000-000000000101', 'Ejecucion integral de obras', 'Planificacion, construccion y control de obras residenciales, comerciales e institucionales.', 1),
-  ('00000000-0000-0000-0000-000000000102', 'Desarrollo de edificios', 'Ejecucion de edificios multifamiliares y desarrollos verticales con lectura clara de unidades y tipologias.', 2),
-  ('00000000-0000-0000-0000-000000000103', 'Supervision y avances', 'Seguimiento tecnico, control de calidad, registro de avances y coordinacion en obra.', 3),
-  ('00000000-0000-0000-0000-000000000104', 'Remodelacion y ampliacion', 'Intervenimos viviendas, locales y espacios existentes con soluciones funcionales y buen criterio constructivo.', 4)
+  ('00000000-0000-0000-0000-000000000101', 'Construccion de casas y edificios', 'Ejecutamos proyectos residenciales, comerciales y de edificacion con coordinacion tecnica y control por etapas.', 1),
+  ('00000000-0000-0000-0000-000000000102', 'Arquitectura y desarrollo de planos', 'Trabajamos anteproyectos, planos arquitectonicos, distribucion funcional y documentacion base para construir con claridad.', 2),
+  ('00000000-0000-0000-0000-000000000103', 'Remodelaciones y ampliaciones', 'Intervenimos viviendas, oficinas y locales existentes para renovar espacios, ampliar areas y mejorar su funcionamiento.', 3),
+  ('00000000-0000-0000-0000-000000000104', 'Interiores y acabados', 'Desarrollamos propuestas de interiorismo, materiales, revestimientos y detalles finales para elevar la experiencia del espacio.', 4),
+  ('00000000-0000-0000-0000-000000000105', 'Supervision tecnica de obra', 'Hacemos seguimiento de avances, control de calidad, coordinacion de obra y resolucion tecnica durante la ejecucion.', 5),
+  ('00000000-0000-0000-0000-000000000106', 'Presupuestos y cotizaciones', 'Revisamos planos, ideas iniciales o requerimientos del cliente para preparar cotizaciones claras segun el alcance del proyecto.', 6)
 on conflict (id) do update set
   title = excluded.title,
   text = excluded.text,
