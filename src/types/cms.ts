@@ -1,12 +1,30 @@
+import type { BusinessPageMap, CmsBusinessUnit } from "./business";
+
 export type ProjectStatus = "planificacion" | "en_progreso" | "finalizado";
 
 export type LeadStatus = "nuevo" | "contactado" | "seguimiento" | "cerrado";
 export type CmsUserRole = "admin" | "architect" | "site_manager" | "sales";
 
-export type ServiceItem = {
+export type ServiceBeforeAfterItem = {
   id: string;
   title: string;
+  beforeImage: string;
+  afterImage: string;
+};
+
+export type ServiceItem = {
+  id: string;
+  slug: string;
+  title: string;
   text: string;
+  description: string;
+  heroImage: string;
+  gallery: string[];
+  priceLabel?: string;
+  isPriceVisible: boolean;
+  requiresLocation: boolean;
+  leadPrompt: string;
+  beforeAfterItems: ServiceBeforeAfterItem[];
 };
 
 export type ProcessStep = {
@@ -118,6 +136,29 @@ export type BuildingProject = {
   mapEmbedUrl?: string;
 };
 
+export type PropertyStatus = "disponible" | "reservado" | "vendido" | "alquilado";
+export type PropertyOperation = "venta" | "alquiler";
+
+export type RealEstateProperty = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  operation: PropertyOperation;
+  status: PropertyStatus;
+  location: string;
+  price: string;
+  area: string;
+  bedrooms: number;
+  bathrooms: number;
+  summary: string;
+  description: string;
+  heroImage: string;
+  gallery: string[];
+  features: string[];
+  mapEmbedUrl?: string;
+};
+
 export type TeamMember = {
   id: string;
   name: string;
@@ -142,12 +183,18 @@ export type FaqItem = {
 
 export type LeadPayload = {
   fullName: string;
+  nationalId: string;
   phone: string;
-  email: string;
+  email?: string;
   message: string;
-  interestType: "obra" | "edificio" | "departamento" | "general";
+  businessUnit: CmsBusinessUnit;
+  interestType: "obra" | "edificio" | "departamento" | "general" | "servicio";
   referenceSlug?: string;
+  referenceLabel?: string;
   unitLabel?: string;
+  locationText?: string;
+  locationLat?: number;
+  locationLng?: number;
 };
 
 export type SiteContent = {
@@ -155,7 +202,9 @@ export type SiteContent = {
   services: ServiceItem[];
   works: WorkProject[];
   buildings: BuildingProject[];
+  properties: RealEstateProperty[];
   team: TeamMember[];
   testimonials: TestimonialItem[];
   faqs: FaqItem[];
+  businessPages: BusinessPageMap;
 };

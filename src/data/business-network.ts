@@ -1,37 +1,9 @@
-import type { FaqItem, ProcessStep, ServiceItem } from "../types/cms";
+import type {
+  BusinessPageMap,
+  GatewayArea,
+} from "../types/business";
 
-export type BusinessSlug = "constructora" | "juridico" | "bienes-raices";
-
-export type GatewayArea = {
-  slug: BusinessSlug;
-  eyebrow: string;
-  title: string;
-  description: string;
-  detail: string;
-  image: string;
-  bullets: string[];
-};
-
-export type BusinessAreaContent = {
-  slug: BusinessSlug;
-  label: string;
-  eyebrow: string;
-  title: string;
-  accent: string;
-  description: string;
-  image: string;
-  tagline: string;
-  coverage: string;
-  coverageDescription: string;
-  primaryLabel: string;
-  secondaryLabel: string;
-  services: ServiceItem[];
-  highlights: { id: string; title: string; text: string }[];
-  process: ProcessStep[];
-  faqs: FaqItem[];
-  contactPrompt: string;
-  footerBlurb: string;
-};
+export type { BusinessSlug, BusinessAreaContent, GatewayArea } from "../types/business";
 
 export const gatewayAreas: GatewayArea[] = [
   {
@@ -99,8 +71,7 @@ export const networkHighlights = [
   },
 ];
 
-export const businessAreas: Record<Exclude<BusinessSlug, "constructora">, BusinessAreaContent> =
-  {
+export const defaultBusinessPages: BusinessPageMap = {
     juridico: {
       slug: "juridico",
       label: "Estudio juridico",

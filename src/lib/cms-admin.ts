@@ -6,11 +6,19 @@ import type {
   LeadStatus,
   ProgressUpdate,
   ProjectStatus,
+  RealEstateProperty,
+  ServiceBeforeAfterItem,
   ServiceItem,
   SiteSettings,
   TeamMember,
   WorkProject,
 } from "../types/cms";
+import type {
+  BusinessAreaContent,
+  BusinessPageMap,
+  CmsBusinessUnit,
+  ManagedBusinessSlug,
+} from "../types/business";
 import { fallbackContent } from "../data/fallback-content";
 import {
   assertEmail,
@@ -27,12 +35,18 @@ import { isSupabaseConfigured, supabaseClient } from "./supabase";
 export type LeadRecord = {
   id: string;
   fullName: string;
+  nationalId: string;
   phone: string;
-  email: string;
+  email?: string;
   message: string;
-  interestType: "obra" | "edificio" | "departamento" | "general";
+  businessUnit: CmsBusinessUnit;
+  interestType: "obra" | "edificio" | "departamento" | "general" | "servicio";
   referenceSlug?: string;
+  referenceLabel?: string;
   unitLabel?: string;
+  locationText?: string;
+  locationLat?: number;
+  locationLng?: number;
   status: LeadStatus;
   adminNotes?: string;
   createdAt: string;
@@ -42,6 +56,7 @@ export type CmsViewerProfile = {
   userId?: string;
   fullName: string;
   role: CmsUserRole;
+  businessUnit: CmsBusinessUnit;
   email?: string;
 };
 
@@ -50,6 +65,7 @@ export type CmsStaffProfile = {
   fullName: string;
   email?: string;
   role: CmsUserRole;
+  businessUnit: CmsBusinessUnit;
   assignedWorkIds: string[];
   assignedBuildingIds: string[];
 };
@@ -128,15 +144,37 @@ type TeamRow = {
   display_order?: number;
 };
 
+type ServiceRow = {
+  id: string;
+  slug: string | null;
+  title: string;
+  text: string;
+  description: string | null;
+  hero_image: string | null;
+  gallery: string[] | null;
+  price_label: string | null;
+  is_price_visible: boolean | null;
+  requires_location: boolean | null;
+  lead_prompt: string | null;
+  before_after_items: ServiceBeforeAfterItem[] | null;
+  display_order?: number;
+};
+
 type LeadRow = {
   id: string;
   full_name: string;
+  national_id: string | null;
   phone: string;
-  email: string;
+  email: string | null;
   message: string;
+  business_unit: CmsBusinessUnit | null;
   interest_type: LeadRecord["interestType"];
   reference_slug: string | null;
+  reference_label: string | null;
   unit_label: string | null;
+  location_text: string | null;
+  location_lat: number | null;
+  location_lng: number | null;
   status: LeadStatus;
   admin_notes: string | null;
   created_at: string;
@@ -147,6 +185,28 @@ type AdminProfileRow = {
   full_name: string | null;
   email: string | null;
   role: CmsUserRole | null;
+  business_unit: CmsBusinessUnit | null;
+};
+
+type BusinessAreaRow = {
+  slug: ManagedBusinessSlug;
+  label: string;
+  eyebrow: string;
+  title: string;
+  accent: string;
+  description: string;
+  image: string;
+  tagline: string;
+  coverage: string;
+  coverage_description: string;
+  primary_label: string;
+  secondary_label: string;
+  services: BusinessAreaContent["services"] | null;
+  highlights: BusinessAreaContent["highlights"] | null;
+  process: BusinessAreaContent["process"] | null;
+  faqs: BusinessAreaContent["faqs"] | null;
+  contact_prompt: string;
+  footer_blurb: string;
 };
 
 type SiteSettingsRow = {
@@ -175,13 +235,35 @@ type BuildingAssignmentRow = {
   user_id: string;
 };
 
+type PropertyRow = {
+  id: string;
+  slug: string;
+  title: string;
+  category: string;
+  operation: RealEstateProperty["operation"];
+  status: RealEstateProperty["status"];
+  location: string;
+  price: string;
+  area: string;
+  bedrooms: number;
+  bathrooms: number;
+  summary: string;
+  description: string;
+  hero_image: string;
+  gallery: string[] | null;
+  features: string[] | null;
+  map_embed_url: string | null;
+};
+
 export type CmsDashboardData = {
   settings: SiteSettings;
   services: ServiceItem[];
   works: WorkProject[];
   buildings: BuildingProject[];
+  properties: RealEstateProperty[];
   team: TeamMember[];
   leads: LeadRecord[];
+  businessPages: BusinessPageMap;
   viewer: CmsViewerProfile;
   staff: CmsStaffProfile[];
 };
@@ -274,19 +356,97 @@ function mapTeam(row: TeamRow): TeamMember {
   };
 }
 
+function normalizeServiceSlug(row: Pick<ServiceRow, "slug" | "title" | "id">) {
+  if (row.slug?.trim()) {
+    return row.slug.trim();
+  }
+
+  return sanitizeSlug(`${row.title}-${row.id.slice(0, 8)}`);
+}
+
+function mapService(row: ServiceRow): ServiceItem {
+  return {
+    id: row.id,
+    slug: normalizeServiceSlug(row),
+    title: row.title,
+    text: row.text,
+    description: row.description?.trim() || row.text,
+    heroImage: row.hero_image?.trim() || "",
+    gallery: row.gallery ?? [],
+    priceLabel: row.price_label?.trim() || undefined,
+    isPriceVisible: row.is_price_visible ?? false,
+    requiresLocation: row.requires_location ?? false,
+    leadPrompt: row.lead_prompt?.trim() || "",
+    beforeAfterItems: row.before_after_items ?? [],
+  };
+}
+
 function mapLead(row: LeadRow): LeadRecord {
   return {
     id: row.id,
     fullName: row.full_name,
+    nationalId: row.national_id ?? "Pendiente",
     phone: row.phone,
-    email: row.email,
+    email: row.email ?? undefined,
     message: row.message,
+    businessUnit: row.business_unit ?? "grupo",
     interestType: row.interest_type,
     referenceSlug: row.reference_slug ?? undefined,
+    referenceLabel: row.reference_label ?? undefined,
     unitLabel: row.unit_label ?? undefined,
+    locationText: row.location_text ?? undefined,
+    locationLat: row.location_lat ?? undefined,
+    locationLng: row.location_lng ?? undefined,
     status: row.status,
     adminNotes: row.admin_notes ?? undefined,
     createdAt: row.created_at,
+  };
+}
+
+function mapBusinessArea(row: BusinessAreaRow): BusinessAreaContent {
+  const fallback = fallbackContent.businessPages[row.slug];
+
+  return {
+    slug: row.slug,
+    label: row.label || fallback.label,
+    eyebrow: row.eyebrow || fallback.eyebrow,
+    title: row.title || fallback.title,
+    accent: row.accent || fallback.accent,
+    description: row.description || fallback.description,
+    image: row.image || fallback.image,
+    tagline: row.tagline || fallback.tagline,
+    coverage: row.coverage || fallback.coverage,
+    coverageDescription: row.coverage_description || fallback.coverageDescription,
+    primaryLabel: row.primary_label || fallback.primaryLabel,
+    secondaryLabel: row.secondary_label || fallback.secondaryLabel,
+    services: row.services?.length ? row.services : fallback.services,
+    highlights: row.highlights?.length ? row.highlights : fallback.highlights,
+    process: row.process?.length ? row.process : fallback.process,
+    faqs: row.faqs?.length ? row.faqs : fallback.faqs,
+    contactPrompt: row.contact_prompt || fallback.contactPrompt,
+    footerBlurb: row.footer_blurb || fallback.footerBlurb,
+  };
+}
+
+function mapProperty(row: PropertyRow): RealEstateProperty {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    category: row.category,
+    operation: row.operation,
+    status: row.status,
+    location: row.location,
+    price: row.price,
+    area: row.area,
+    bedrooms: row.bedrooms,
+    bathrooms: row.bathrooms,
+    summary: row.summary,
+    description: row.description,
+    heroImage: row.hero_image,
+    gallery: row.gallery ?? [],
+    features: row.features ?? [],
+    mapEmbedUrl: row.map_embed_url ?? undefined,
   };
 }
 
@@ -336,6 +496,17 @@ function normalizePathSegment(value: string) {
     .replace(/[^a-z0-9.-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function ensureUuid(value: string) {
+  if (UUID_REGEX.test(value)) {
+    return value;
+  }
+
+  return crypto.randomUUID();
 }
 
 export async function getCmsSession() {
@@ -407,6 +578,7 @@ export async function signUpCms(email: string, password: string) {
         full_name: userEmail,
         email: userEmail,
         role: count && count > 0 ? "architect" : "admin",
+        business_unit: count && count > 0 ? "constructora" : "grupo",
       },
       { onConflict: "user_id" }
     );
@@ -450,6 +622,7 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
       full_name: session.user.email ?? "Administrador",
       email: session.user.email ?? null,
       role: "architect",
+      business_unit: "constructora",
     });
 
     if (ensureProfileError) {
@@ -462,15 +635,22 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
     servicesRes,
     worksRes,
     buildingsRes,
+    propertiesRes,
     teamRes,
     leadsRes,
+    businessAreaPagesRes,
     profileRes,
     profilesRes,
     workAssignmentsRes,
     buildingAssignmentsRes,
   ] = await Promise.all([
     client.from("site_settings").select("*").limit(1).maybeSingle(),
-    client.from("services").select("id,title,text,display_order").order("display_order"),
+    client
+      .from("services")
+      .select(
+        "id,slug,title,text,description,hero_image,gallery,price_label,is_price_visible,requires_location,lead_prompt,before_after_items,display_order"
+      )
+      .order("display_order"),
     client
       .from("works")
       .select(
@@ -484,21 +664,35 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
       )
       .order("created_at", { ascending: false }),
     client
+      .from("real_estate_properties")
+      .select(
+        "id,slug,title,category,operation,status,location,price,area,bedrooms,bathrooms,summary,description,hero_image,gallery,features,map_embed_url"
+      )
+      .order("created_at", { ascending: false }),
+    client
       .from("team_members")
       .select("id,name,role,bio,image,display_order")
       .order("display_order", { ascending: true }),
     client
       .from("leads")
       .select(
-        "id,full_name,phone,email,message,interest_type,reference_slug,unit_label,status,admin_notes,created_at"
+        "id,full_name,national_id,phone,email,message,business_unit,interest_type,reference_slug,reference_label,unit_label,location_text,location_lat,location_lng,status,admin_notes,created_at"
       )
       .order("created_at", { ascending: false }),
     client
+      .from("business_area_pages")
+      .select(
+        "slug,label,eyebrow,title,accent,description,image,tagline,coverage,coverage_description,primary_label,secondary_label,services,highlights,process,faqs,contact_prompt,footer_blurb"
+      ),
+    client
       .from("admin_profiles")
-      .select("user_id,full_name,email,role")
+      .select("user_id,full_name,email,role,business_unit")
       .eq("user_id", session.user.id)
       .maybeSingle(),
-    client.from("admin_profiles").select("user_id,full_name,email,role").order("created_at"),
+    client
+      .from("admin_profiles")
+      .select("user_id,full_name,email,role,business_unit")
+      .order("created_at"),
     client.from("work_assignments").select("work_id,user_id"),
     client.from("building_assignments").select("building_id,user_id"),
   ]);
@@ -508,8 +702,10 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
     servicesRes.error ??
     worksRes.error ??
     buildingsRes.error ??
+    propertiesRes.error ??
     teamRes.error ??
     leadsRes.error ??
+    businessAreaPagesRes.error ??
     profileRes.error ??
     profilesRes.error ??
     workAssignmentsRes.error ??
@@ -525,6 +721,7 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
   const buildingAssignments = (buildingAssignmentsRes.data ?? []) as BuildingAssignmentRow[];
 
   const viewerRole = profile?.role ?? "admin";
+  const viewerBusinessUnit = profile?.business_unit ?? "constructora";
   const viewerWorkIds = workAssignments
     .filter((assignment) => assignment.user_id === session.user.id)
     .map((assignment) => assignment.work_id);
@@ -536,6 +733,7 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
   const buildings = (buildingsRes.data ?? []).map((row) =>
     mapBuilding(row as BuildingRow)
   );
+  const properties = (propertiesRes.data ?? []).map((row) => mapProperty(row as PropertyRow));
 
   const filteredWorks =
     viewerRole === "admin" || viewerRole === "sales"
@@ -552,6 +750,7 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
     fullName: row.full_name ?? row.email ?? "Sin nombre",
     email: row.email ?? undefined,
     role: row.role ?? "sales",
+    businessUnit: row.business_unit ?? "constructora",
     assignedWorkIds: workAssignments
       .filter((assignment) => assignment.user_id === row.user_id)
       .map((assignment) => assignment.work_id),
@@ -560,27 +759,38 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
       .map((assignment) => assignment.building_id),
   }));
 
+  const businessPages: BusinessPageMap = { ...fallbackContent.businessPages };
+  for (const row of (businessAreaPagesRes.data ?? []) as BusinessAreaRow[]) {
+    businessPages[row.slug] = mapBusinessArea(row);
+  }
+
   return {
     settings: mapSiteSettings((settingsRes.data ?? undefined) as SiteSettingsRow | undefined),
     services:
       (servicesRes.data ?? []).length > 0
-        ? (servicesRes.data ?? []).map((row) => ({
-            id: row.id,
-            title: row.title,
-            text: row.text,
-          }))
+        ? (servicesRes.data ?? []).map((row) => mapService(row as ServiceRow))
         : fallbackContent.services,
     works: filteredWorks,
     buildings: filteredBuildings,
+    properties,
     team: (teamRes.data ?? []).map((row) => mapTeam(row as TeamRow)),
     leads:
       viewerRole === "admin" || viewerRole === "sales"
-        ? (leadsRes.data ?? []).map((row) => mapLead(row as LeadRow))
+        ? (leadsRes.data ?? [])
+            .map((row) => mapLead(row as LeadRow))
+            .filter(
+              (lead) =>
+                viewerRole === "admin" ||
+                viewerBusinessUnit === "grupo" ||
+                lead.businessUnit === viewerBusinessUnit
+            )
         : [],
+    businessPages,
     viewer: {
       userId: session.user.id,
       fullName: profile?.full_name ?? session.user.email ?? "Administrador",
       role: viewerRole,
+      businessUnit: viewerBusinessUnit,
       email: session.user.email,
     },
     staff,
@@ -589,7 +799,7 @@ export async function loadCmsDashboard(): Promise<CmsDashboardData> {
 
 export async function uploadCmsAsset(
   file: File,
-  folder: "works" | "buildings" | "team" | "plans",
+  folder: "works" | "buildings" | "team" | "plans" | "services" | "properties",
   slugHint: string
 ) {
   const client = getClient();
@@ -905,6 +1115,83 @@ export async function deleteBuilding(buildingId: string) {
   }
 }
 
+export async function saveProperty(
+  property: Omit<RealEstateProperty, "id"> & { id?: string }
+) {
+  const client = getClient();
+  const payload = {
+    slug: sanitizeSlug(property.slug),
+    title: sanitizeText(property.title, "El titulo de la propiedad", { min: 3, max: 140 }),
+    category: sanitizeText(property.category, "La categoria", { min: 2, max: 80 }),
+    operation: property.operation,
+    status: property.status,
+    location: sanitizeText(property.location, "La ubicacion", { min: 3, max: 140 }),
+    price: sanitizeText(property.price, "El precio", { min: 2, max: 80 }),
+    area: sanitizeText(property.area, "El area", { min: 2, max: 40 }),
+    bedrooms: property.bedrooms,
+    bathrooms: property.bathrooms,
+    summary: sanitizeText(property.summary, "El resumen", {
+      min: 12,
+      max: 320,
+      preserveNewlines: true,
+    }),
+    description: sanitizeText(property.description, "La descripcion", {
+      min: 20,
+      max: 2400,
+      preserveNewlines: true,
+    }),
+    hero_image: sanitizeHttpUrl(property.heroImage, "La imagen principal", false),
+    gallery: sanitizeUrlList(property.gallery, "La galeria"),
+    features: sanitizeStringList(property.features, "La caracteristica", 120),
+    map_embed_url: property.mapEmbedUrl
+      ? sanitizeHttpUrl(property.mapEmbedUrl, "El mapa embebido")
+      : null,
+  };
+
+  let propertyId = property.id;
+
+  if (property.id) {
+    const { error } = await client
+      .from("real_estate_properties")
+      .update(payload)
+      .eq("id", property.id);
+
+    if (error) {
+      throw error;
+    }
+  } else {
+    const { data, error } = await client
+      .from("real_estate_properties")
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    propertyId = data.id;
+  }
+
+  if (!propertyId) {
+    throw new Error("No se pudo resolver el id de la propiedad.");
+  }
+
+  return propertyId;
+}
+
+export async function deleteProperty(propertyId: string) {
+  const client = getClient();
+  const { error } = await client
+    .from("real_estate_properties")
+    .delete()
+    .eq("id", propertyId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function replaceBuildingAssignments(
   buildingId: string,
   userIds: string[]
@@ -1071,33 +1358,198 @@ export async function saveSiteSettings(settings: SiteSettings) {
   }
 }
 
+export async function saveBusinessAreaPage(page: BusinessAreaContent) {
+  const client = getClient();
+
+  const payload = {
+    slug: page.slug,
+    label: sanitizeText(page.label, "La etiqueta del area", { min: 3, max: 120 }),
+    eyebrow: sanitizeText(page.eyebrow, "El eyebrow del area", { min: 3, max: 120 }),
+    title: sanitizeText(page.title, "El titulo del area", { min: 3, max: 120 }),
+    accent: sanitizeText(page.accent, "El acento del area", { min: 2, max: 120 }),
+    description: sanitizeText(page.description, "La descripcion del area", {
+      min: 10,
+      max: 420,
+      preserveNewlines: true,
+    }),
+    image: sanitizeHttpUrl(page.image, "La imagen del area", false),
+    tagline: sanitizeText(page.tagline, "El tagline del area", {
+      min: 6,
+      max: 220,
+      preserveNewlines: true,
+    }),
+    coverage: sanitizeText(page.coverage, "La cobertura", { min: 2, max: 120 }),
+    coverage_description: sanitizeText(
+      page.coverageDescription,
+      "La descripcion de cobertura",
+      { min: 10, max: 260, preserveNewlines: true }
+    ),
+    primary_label: sanitizeText(page.primaryLabel, "El boton principal", { min: 2, max: 80 }),
+    secondary_label: sanitizeText(page.secondaryLabel, "El boton secundario", {
+      min: 2,
+      max: 80,
+    }),
+    services: page.services.map((item) => ({
+      id: sanitizeSlug(item.id),
+      title: sanitizeText(item.title, "El titulo del servicio", { min: 3, max: 140 }),
+      text: sanitizeText(item.text, "El texto del servicio", {
+        min: 10,
+        max: 320,
+        preserveNewlines: true,
+      }),
+    })),
+    highlights: page.highlights.map((item) => ({
+      id: sanitizeSlug(item.id),
+      title: sanitizeText(item.title, "El titulo del bloque", { min: 3, max: 140 }),
+      text: sanitizeText(item.text, "El texto del bloque", {
+        min: 10,
+        max: 320,
+        preserveNewlines: true,
+      }),
+    })),
+    process: page.process.map((item) => ({
+      id: sanitizeSlug(item.id),
+      order: sanitizeText(item.order, "El orden del proceso", { min: 1, max: 10 }),
+      title: sanitizeText(item.title, "El titulo del proceso", { min: 3, max: 140 }),
+      text: sanitizeText(item.text, "El texto del proceso", {
+        min: 10,
+        max: 320,
+        preserveNewlines: true,
+      }),
+    })),
+    faqs: page.faqs.map((item) => ({
+      id: sanitizeSlug(item.id),
+      question: sanitizeText(item.question, "La pregunta frecuente", {
+        min: 6,
+        max: 180,
+      }),
+      answer: sanitizeText(item.answer, "La respuesta frecuente", {
+        min: 10,
+        max: 420,
+        preserveNewlines: true,
+      }),
+    })),
+    contact_prompt: sanitizeText(page.contactPrompt, "El texto de contacto", {
+      min: 10,
+      max: 360,
+      preserveNewlines: true,
+    }),
+    footer_blurb: sanitizeText(page.footerBlurb, "El texto del footer", {
+      min: 10,
+      max: 220,
+      preserveNewlines: true,
+    }),
+  };
+
+  const { error } = await client.from("business_area_pages").upsert(payload, {
+    onConflict: "slug",
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function saveServices(services: ServiceItem[]) {
   const client = getClient();
-  const { error: deleteError } = await client.from("services").delete().neq("id", "");
+  const validServices = services.map((service, index) =>
+    buildServicePayload(service, index + 1)
+  );
+  const currentIds = validServices.map((service) => service.id);
 
-  if (deleteError) {
-    throw deleteError;
+  if (currentIds.length > 0) {
+    const { error: deleteError } = await client
+      .from("services")
+      .delete()
+      .not("id", "in", `(${currentIds.map((id) => `"${id}"`).join(",")})`);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+  } else {
+    const { error: deleteError } = await client.from("services").delete().not("id", "is", null);
+
+    if (deleteError) {
+      throw deleteError;
+    }
   }
 
-  if (services.length === 0) {
+  if (validServices.length === 0) {
     return;
   }
 
-  const { error } = await client.from("services").insert(
-    services.map((service, index) => ({
-      id: service.id,
-      title: sanitizeText(service.title, "El titulo del servicio", {
-        min: 3,
+  const { error } = await client
+    .from("services")
+    .upsert(validServices, { onConflict: "id" });
+
+  if (error) {
+    throw error;
+  }
+}
+
+function buildServicePayload(service: ServiceItem, displayOrder: number) {
+  return {
+    id: ensureUuid(service.id),
+    slug: sanitizeSlug(service.slug),
+    title: sanitizeText(service.title, "El titulo del servicio", {
+      min: 3,
+      max: 120,
+    }),
+    text: sanitizeText(service.text, "El texto del servicio", {
+      min: 10,
+      max: 260,
+      preserveNewlines: true,
+    }),
+    description: sanitizeText(service.description || service.text, "La descripcion del servicio", {
+      min: 20,
+      max: 2400,
+      preserveNewlines: true,
+    }),
+    hero_image: service.heroImage
+      ? sanitizeHttpUrl(service.heroImage, "La portada del servicio")
+      : "",
+    gallery: sanitizeUrlList(service.gallery, "La imagen del servicio"),
+    price_label: service.isPriceVisible
+      ? sanitizeText(service.priceLabel ?? "", "El precio visible", {
+          min: 2,
+          max: 120,
+        })
+      : null,
+    is_price_visible: service.isPriceVisible,
+    requires_location: service.requiresLocation,
+    lead_prompt: service.leadPrompt
+      ? sanitizeText(service.leadPrompt, "La guia comercial del servicio", {
+          min: 10,
+          max: 420,
+          preserveNewlines: true,
+        })
+      : "",
+    before_after_items: service.beforeAfterItems.map((item, itemIndex) => ({
+      id: item.id || `compare-${displayOrder}-${itemIndex + 1}`,
+      title: sanitizeText(item.title, "El titulo del comparador", {
+        min: 2,
         max: 120,
       }),
-      text: sanitizeText(service.text, "El texto del servicio", {
-        min: 10,
-        max: 260,
-        preserveNewlines: true,
-      }),
-      display_order: index + 1,
-    }))
-  );
+      beforeImage: sanitizeHttpUrl(item.beforeImage, `La imagen antes ${itemIndex + 1}`, false),
+      afterImage: sanitizeHttpUrl(item.afterImage, `La imagen despues ${itemIndex + 1}`, false),
+    })),
+    display_order: displayOrder,
+  };
+}
+
+export async function saveService(service: ServiceItem, displayOrder: number) {
+  const client = getClient();
+  const payload = buildServicePayload(service, displayOrder);
+  const { error } = await client.from("services").upsert(payload, { onConflict: "id" });
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function deleteService(serviceId: string) {
+  const client = getClient();
+  const { error } = await client.from("services").delete().eq("id", serviceId);
 
   if (error) {
     throw error;
@@ -1109,6 +1561,7 @@ export async function saveAdminProfile(profile: {
   fullName: string;
   email?: string;
   role: CmsUserRole;
+  businessUnit: CmsBusinessUnit;
 }) {
   const client = getClient();
   const { error } = await client.from("admin_profiles").upsert(
@@ -1120,6 +1573,7 @@ export async function saveAdminProfile(profile: {
       }),
       email: profile.email ? assertEmail(profile.email) : null,
       role: profile.role,
+      business_unit: profile.businessUnit,
     },
     { onConflict: "user_id" }
   );
@@ -1205,6 +1659,27 @@ export function buildEmptyBuilding(): Omit<BuildingProject, "id"> {
     metrics: [],
     amenities: [],
     units: [],
+    mapEmbedUrl: "",
+  };
+}
+
+export function buildEmptyProperty(): Omit<RealEstateProperty, "id"> {
+  return {
+    slug: "",
+    title: "",
+    category: "Casa",
+    operation: "venta",
+    status: "disponible",
+    location: "",
+    price: "",
+    area: "",
+    bedrooms: 0,
+    bathrooms: 0,
+    summary: "",
+    description: "",
+    heroImage: "",
+    gallery: [],
+    features: [],
     mapEmbedUrl: "",
   };
 }

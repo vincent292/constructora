@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -15,18 +15,17 @@ import {
   X,
 } from "lucide-react";
 import {
-  businessAreas,
   gatewayAreas,
-  networkHighlights,
-  type BusinessAreaContent,
-  type BusinessSlug,
 } from "./data/business-network";
+import GoogleMapPicker from "./components/GoogleMapPicker";
 import { fallbackContent } from "./data/fallback-content";
 import { createLead, loadSiteContent } from "./lib/content";
+import type { BusinessAreaContent, BusinessSlug } from "./types/business";
 import type {
   BuildingProject,
   FaqItem,
   LeadPayload,
+  RealEstateProperty,
   ServiceItem,
   SiteContent,
   TeamMember,
@@ -61,6 +60,7 @@ type ScrollTriggerModule = {
 type DetailState =
   | { kind: "work"; item: WorkProject }
   | { kind: "building"; item: BuildingProject }
+  | { kind: "service"; item: ServiceItem }
   | null;
 
 type PublicPage = "hub" | BusinessSlug;
@@ -69,7 +69,8 @@ type RouteState =
   | { kind: "hub" }
   | { kind: "page"; page: BusinessSlug }
   | { kind: "work"; slug: string }
-  | { kind: "building"; slug: string };
+  | { kind: "building"; slug: string }
+  | { kind: "service"; slug: string };
 
 type NavLinkItem = {
   label: string;
@@ -78,25 +79,30 @@ type NavLinkItem = {
 };
 
 type LeadFormState = {
-  firstName: string;
-  lastName: string;
+  fullName: string;
+  nationalId: string;
   phone: string;
   email: string;
-  city: string;
   message: string;
+  locationText: string;
+  locationLat: number | null;
+  locationLng: number | null;
 };
 
-const boliviaCities = [
-  "La Paz",
-  "Santa Cruz",
-  "Cochabamba",
-  "Sucre",
-  "Oruro",
-  "Potosi",
-  "Tarija",
-  "Beni",
-  "Pando",
-] as const;
+type LeadContextState = {
+  interestType: LeadPayload["interestType"];
+  referenceSlug?: string;
+  referenceLabel?: string;
+  unitLabel?: string;
+  requiresLocation: boolean;
+  contextLabel: string;
+  title?: string;
+  description?: string;
+  messagePlaceholder?: string;
+  successTitle?: string;
+};
+
+const HUB_BACKGROUND_ROTATION_MS = 5000;
 
 function Button({
   children,
@@ -146,6 +152,7 @@ function interestTypeLabel(
 
   if (interestType === "edificio") return "Consulta por edificio";
   if (interestType === "obra") return "Consulta por obra";
+  if (interestType === "servicio") return "Consulta por servicio";
   return "Consulta general";
 }
 
@@ -173,6 +180,10 @@ function parseRoute(): RouteState {
     return { kind: "building", slug: segments[2] };
   }
 
+  if (segments[0] === "constructora" && segments[1] === "servicios" && segments[2]) {
+    return { kind: "service", slug: segments[2] };
+  }
+
   // Legacy public detail routes are still resolved and redirected to /constructora.
   if (segments[0] === "obras" && segments[1]) {
     return { kind: "work", slug: segments[1] };
@@ -180,6 +191,10 @@ function parseRoute(): RouteState {
 
   if (segments[0] === "edificios" && segments[1]) {
     return { kind: "building", slug: segments[1] };
+  }
+
+  if (segments[0] === "servicios" && segments[1]) {
+    return { kind: "service", slug: segments[1] };
   }
 
   if (segments[0] === "constructora") {
@@ -201,10 +216,16 @@ function buildPageRoute(page: PublicPage) {
   return page === "hub" ? "/" : `/${page}`;
 }
 
-function buildRoute(kind: "work" | "building", slug: string) {
-  return kind === "work"
-    ? `/constructora/obras/${slug}`
-    : `/constructora/edificios/${slug}`;
+function buildDetailRoute(kind: "work" | "building" | "service", slug: string) {
+  if (kind === "work") {
+    return `/constructora/obras/${slug}`;
+  }
+
+  if (kind === "building") {
+    return `/constructora/edificios/${slug}`;
+  }
+
+  return `/constructora/servicios/${slug}`;
 }
 
 function detectAppleMobileSafari() {
@@ -452,22 +473,110 @@ function CatalogCard({
 function ServiceCard({
   service,
   iconIndex = 0,
+  onClick,
 }: {
-  service: ServiceItem;
+  service: {
+    id: string;
+    title: string;
+    text: string;
+    priceLabel?: string;
+    isPriceVisible?: boolean;
+    requiresLocation?: boolean;
+  };
   iconIndex?: number;
+  onClick?: () => void;
 }) {
   const serviceIcons = [Building2, Layers3, ClipboardList, ShieldCheck];
   const Icon = serviceIcons[Math.abs(iconIndex) % serviceIcons.length];
 
   return (
-    <div className="gsap-reveal rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-4 text-stone-100 shadow-xl shadow-black/20 backdrop-blur-xl sm:rounded-[2rem] sm:p-6">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      className={`gsap-reveal group rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-4 text-left text-stone-100 shadow-xl shadow-black/20 backdrop-blur-xl transition sm:rounded-[2rem] sm:p-6 ${
+        onClick
+          ? "hover:-translate-y-1 hover:border-[#FFDC63]/20"
+          : "cursor-default"
+      }`}
+    >
       <div className="mb-5 grid h-11 w-11 place-items-center rounded-2xl bg-[#FFDC63]/15 text-[#FFDC63] sm:mb-8 sm:h-[52px] sm:w-[52px]">
         <Icon className="h-6 w-6" />
       </div>
-      <h3 className="text-lg font-semibold sm:text-xl">{service.title}</h3>
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-lg font-semibold sm:text-xl">{service.title}</h3>
+        <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-stone-500 transition group-hover:text-[#FFDC63]" />
+      </div>
       <p className="mt-3 text-sm leading-6 text-stone-400 sm:mt-4 sm:text-base sm:leading-7">
         {service.text}
       </p>
+      <div className="mt-5 flex flex-wrap gap-2">
+        {service.isPriceVisible && service.priceLabel ? (
+          <span className="rounded-full border border-[#FFDC63]/20 bg-[#FFDC63]/10 px-3 py-1 text-xs uppercase tracking-[0.18em] text-[#FFDC63]">
+            {service.priceLabel}
+          </span>
+        ) : null}
+        {service.requiresLocation ? (
+          <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs uppercase tracking-[0.18em] text-stone-300">
+            Requiere ubicacion
+          </span>
+        ) : null}
+      </div>
+    </button>
+  );
+}
+
+function BeforeAfterCard({
+  title,
+  beforeImage,
+  afterImage,
+}: {
+  title: string;
+  beforeImage: string;
+  afterImage: string;
+}) {
+  const [split, setSplit] = useState(50);
+
+  return (
+    <div className="overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/[0.04] shadow-xl shadow-black/20 backdrop-blur-xl">
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-4 sm:px-5">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63]">
+            Antes / despues
+          </p>
+          <h3 className="mt-2 text-lg font-semibold text-white sm:text-xl">{title}</h3>
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1 text-xs text-stone-300">
+          {split}%
+        </span>
+      </div>
+
+      <div className="relative h-[280px] bg-black sm:h-[360px]">
+        <img src={beforeImage} alt={`${title} antes`} className="absolute inset-0 h-full w-full object-cover" />
+        <div className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${split}%` }}>
+          <img src={afterImage} alt={`${title} despues`} className="h-full w-full object-cover" />
+        </div>
+        <div className="pointer-events-none absolute inset-y-0" style={{ left: `calc(${split}% - 1px)` }}>
+          <div className="h-full w-0.5 bg-white/90 shadow-[0_0_12px_rgba(255,255,255,0.8)]" />
+        </div>
+        <div className="pointer-events-none absolute left-4 top-4 rounded-full bg-black/55 px-3 py-1 text-xs uppercase tracking-[0.18em] text-stone-200">
+          Despues
+        </div>
+        <div className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-black/55 px-3 py-1 text-xs uppercase tracking-[0.18em] text-stone-200">
+          Antes
+        </div>
+      </div>
+
+      <div className="px-4 py-4 sm:px-5">
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={split}
+          onChange={(event) => setSplit(Number(event.target.value))}
+          className="w-full accent-[#FFDC63]"
+        />
+      </div>
     </div>
   );
 }
@@ -624,15 +733,18 @@ function QuoteModal({
   onClose,
   form,
   onChange,
+  onLocationChange,
   onSubmit,
   loading,
   success,
   error,
   successMessage,
   contextLabel,
+  requireLocation,
+  googleMapsApiKey,
   isAppleMobileSafari,
   title = "Solicita una cotizacion",
-  description = "Comparte tus datos, ciudad y lo que necesitas. Nuestro equipo revisara tu solicitud y te contactara a la brevedad.",
+  description = "Comparte tus datos y lo que necesitas. Nuestro equipo revisara tu solicitud y te contactara a la brevedad.",
   messagePlaceholder = "Cuentanos sobre tu proyecto, planos, remodelacion o requerimiento",
   successTitle = "Gracias por contactar con Construcciones Mondoza",
 }: {
@@ -640,12 +752,19 @@ function QuoteModal({
   onClose: () => void;
   form: LeadFormState;
   onChange: (field: keyof LeadFormState, value: string) => void;
+  onLocationChange: (location: {
+    text: string;
+    lat: number | null;
+    lng: number | null;
+  }) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   loading: boolean;
   success: boolean;
   error: boolean;
   successMessage: string;
   contextLabel: string;
+  requireLocation: boolean;
+  googleMapsApiKey?: string;
   isAppleMobileSafari: boolean;
   title?: string;
   description?: string;
@@ -744,16 +863,16 @@ function QuoteModal({
                 <form onSubmit={onSubmit} className="grid gap-4">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <input
-                      value={form.firstName}
-                      onChange={(event) => onChange("firstName", event.target.value)}
-                      placeholder="Nombre"
+                      value={form.fullName}
+                      onChange={(event) => onChange("fullName", event.target.value)}
+                      placeholder="Nombres completos"
                       className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
                       required
                     />
                     <input
-                      value={form.lastName}
-                      onChange={(event) => onChange("lastName", event.target.value)}
-                      placeholder="Apellido"
+                      value={form.nationalId}
+                      onChange={(event) => onChange("nationalId", event.target.value)}
+                      placeholder="Carnet de identidad"
                       className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
                       required
                     />
@@ -767,29 +886,14 @@ function QuoteModal({
                       className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
                       required
                     />
-                    <select
-                      value={form.city}
-                      onChange={(event) => onChange("city", event.target.value)}
-                      className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none focus:border-[#FFDC63]/35"
-                      required
-                    >
-                      <option value="">Selecciona tu ciudad</option>
-                      {boliviaCities.map((city) => (
-                        <option key={city} value={city} className="text-black">
-                          {city}
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      value={form.email}
+                      onChange={(event) => onChange("email", event.target.value)}
+                      placeholder="Correo electronico opcional"
+                      type="email"
+                      className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
+                    />
                   </div>
-
-                  <input
-                    value={form.email}
-                    onChange={(event) => onChange("email", event.target.value)}
-                    placeholder="Correo electronico"
-                    type="email"
-                    className="h-12 rounded-full border border-white/10 bg-white/[0.06] px-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
-                    required
-                  />
 
                   <textarea
                     value={form.message}
@@ -798,6 +902,19 @@ function QuoteModal({
                     className="min-h-36 rounded-[1.5rem] border border-white/10 bg-white/[0.06] px-4 py-4 text-white outline-none placeholder:text-stone-500 focus:border-[#FFDC63]/35"
                     required
                   />
+
+                  {requireLocation ? (
+                    <GoogleMapPicker
+                      apiKey={googleMapsApiKey}
+                      required
+                      value={{
+                        text: form.locationText,
+                        lat: form.locationLat,
+                        lng: form.locationLng,
+                      }}
+                      onChange={onLocationChange}
+                    />
+                  ) : null}
 
                   <button
                     type="submit"
@@ -1149,6 +1266,21 @@ function HubLandingScreen({
   onNavigate: (page: BusinessSlug) => void;
   onOpenContact: () => void;
 }) {
+  const [activeAreaIndex, setActiveAreaIndex] = useState(0);
+  const activeArea = gatewayAreas[activeAreaIndex] ?? gatewayAreas[0];
+
+  useEffect(() => {
+    if (gatewayAreas.length <= 1) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setActiveAreaIndex((current) => (current + 1) % gatewayAreas.length);
+    }, HUB_BACKGROUND_ROTATION_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
   return (
     <motion.div
       key="hub"
@@ -1157,63 +1289,133 @@ function HubLandingScreen({
       exit={{ opacity: 0, y: -18 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
     >
-      <section id="inicio" className="px-5 pb-14 pt-28 sm:pt-32 md:px-8 md:pb-20">
-        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-end">
+      <section
+        id="inicio"
+        className="relative min-h-[88svh] overflow-hidden px-5 pb-14 pt-28 sm:min-h-[92svh] sm:pt-32 md:px-8 md:pb-20"
+      >
+        <div className="absolute inset-0">
+          <AnimatePresence mode="wait">
+            <motion.img
+              key={activeArea.slug}
+              src={activeArea.image}
+              alt={activeArea.title}
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.02 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="absolute inset-0 h-full w-full object-cover object-center"
+            />
+          </AnimatePresence>
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(8,7,5,0.28)_0%,rgba(8,7,5,0.55)_34%,rgba(8,7,5,0.82)_72%,rgba(8,7,5,0.96)_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_20%,rgba(255,220,99,0.2),transparent_22%),radial-gradient(circle_at_82%_30%,rgba(255,255,255,0.12),transparent_18%)]" />
+        </div>
+
+        <div className="relative mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.05fr_.95fr] lg:items-end">
           <div>
-            <StatusPill tone="brand">Landing madre</StatusPill>
+            <StatusPill tone="brand">Acceso directo</StatusPill>
             <p className="mt-6 text-[11px] uppercase tracking-[0.34em] text-[#FFDC63] sm:text-sm">
               Grupo Mondoza
             </p>
             <h1 className="mt-4 text-[3rem] font-semibold leading-[0.92] tracking-[-0.08em] text-white sm:text-7xl md:text-8xl">
-              Un grupo,
+              Constructora,
               <span className="block [font-family:Georgia,serif] text-[0.88em] italic font-normal tracking-[-0.06em] text-[#f7efe4]">
-                tres unidades claras
+                estudio juridico
+              </span>
+              <span className="block text-[0.68em] leading-[0.95] tracking-[-0.05em] text-stone-200">
+                y bienes raices.
               </span>
             </h1>
             <p className="mt-5 max-w-2xl text-sm leading-6 text-stone-300 sm:text-lg sm:leading-8">
-              Desde aqui el cliente puede elegir si necesita construir, recibir respaldo legal o mover una oportunidad inmobiliaria sin sentir que todo esta mezclado.
+              Tres entradas claras para que cada cliente vaya directo al servicio que necesita, con una presentacion mas limpia y lista para mostrar.
             </p>
 
-            <div className="mt-7 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
-              <Button className="w-full sm:w-auto" onClick={() => onNavigate("constructora")}>
-                Ir a constructora
-                <ArrowUpRight className="ml-2 h-4 w-4" />
+            <div className="mt-7 grid gap-2.5 sm:grid-cols-3">
+              {gatewayAreas.map((area, index) => (
+                <button
+                  key={area.slug}
+                  type="button"
+                  onMouseEnter={() => setActiveAreaIndex(index)}
+                  onFocus={() => setActiveAreaIndex(index)}
+                  onClick={() => onNavigate(area.slug)}
+                  className={`inline-flex min-h-[60px] items-center justify-between rounded-[1.4rem] border px-4 py-3 text-left transition ${
+                    activeArea.slug === area.slug
+                      ? "border-[#FFDC63]/45 bg-[#FFDC63] text-black shadow-lg shadow-[#FFDC63]/10"
+                      : "border-white/15 bg-white/[0.08] text-white backdrop-blur-xl hover:bg-white/[0.12]"
+                  }`}
+                >
+                  <span>
+                    <span className="block text-[11px] uppercase tracking-[0.24em] opacity-70">
+                      Area
+                    </span>
+                    <span className="mt-1 block text-sm font-semibold sm:text-base">
+                      {area.eyebrow}
+                    </span>
+                  </span>
+                  <ArrowUpRight className="h-4 w-4 shrink-0" />
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
+              <Button variant="outline" className="w-full sm:w-auto" onClick={onOpenContact}>
+                Hablar con el equipo
               </Button>
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() =>
-                  document.getElementById("areas")?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  })
-                }
-              >
-                Ver unidades
-              </Button>
+              <p className="text-sm leading-6 text-stone-400">
+                Si no sabes a cual entrar, te ayudamos a derivarlo.
+              </p>
             </div>
           </div>
 
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.045] p-5 shadow-2xl shadow-black/25 backdrop-blur-xl sm:p-7">
             <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFDC63] sm:text-sm">
-              Modelo de marca
+              Vista activa
             </p>
             <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
-              Cada frente con su propia landing y una lectura comun del negocio.
+              {activeArea.title}
             </h2>
+            <p className="mt-3 text-sm leading-6 text-stone-300 sm:text-base sm:leading-7">
+              {activeArea.description}
+            </p>
+
             <div className="mt-6 grid gap-3">
-              {networkHighlights.map((item) => (
+              {activeArea.bullets.map((bullet) => (
                 <div
-                  key={item.id}
+                  key={bullet}
                   className="rounded-[1.4rem] border border-white/10 bg-black/20 p-4"
                 >
-                  <p className="text-sm font-semibold text-white">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-stone-400">{item.text}</p>
+                  <p className="text-sm font-semibold text-white">{bullet}</p>
                 </div>
               ))}
             </div>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              {gatewayAreas.map((area, index) => (
+                <button
+                  key={area.slug}
+                  type="button"
+                  onClick={() => setActiveAreaIndex(index)}
+                  className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.18em] transition ${
+                    activeArea.slug === area.slug
+                      ? "border-[#FFDC63]/45 bg-[#FFDC63] text-black"
+                      : "border-white/12 bg-white/[0.04] text-stone-300 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  {area.eyebrow}
+                </button>
+              ))}
+            </div>
+
             <div className="mt-6 rounded-[1.4rem] border border-[#FFDC63]/20 bg-[#FFDC63]/10 p-4 text-sm leading-6 text-stone-200">
-              {companyName} puede crecer por verticales sin perder coherencia, y despues escalar cada area a su propio CMS y a sus propios roles.
+              {companyName} puede presentar cada frente por separado desde hoy, sin perder una sola lectura de marca.
+            </div>
+
+            <Button className="mt-6 w-full sm:w-auto" onClick={() => onNavigate(activeArea.slug)}>
+              Entrar a {activeArea.eyebrow.toLowerCase()}
+              <ArrowUpRight className="ml-2 h-4 w-4" />
+            </Button>
+            <div className="mt-5 text-xs uppercase tracking-[0.24em] text-stone-500">
+              {String(activeAreaIndex + 1).padStart(2, "0")} / {String(gatewayAreas.length).padStart(2, "0")}{" "}
+              vistas
             </div>
           </div>
         </div>
@@ -1222,12 +1424,12 @@ function HubLandingScreen({
       <section id="areas" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
         <div className="mx-auto max-w-7xl">
           <SectionHeading
-            eyebrow="Unidades"
-            title="Elige el frente que mejor responde a la necesidad del cliente."
+            eyebrow="Frentes"
+            title="Tres accesos directos para entrar al servicio correcto."
             description={
               <ResponsiveCopy
-                mobile="Tres entradas claras para no mezclar mensajes."
-                desktop="Cada unidad de negocio conserva su propia presentacion, pero se beneficia de una estructura comun y una marca mejor organizada."
+                mobile="Cada landing ya separa el mensaje desde el primer click."
+                desktop="Constructora, juridico y bienes raices ya se presentan como accesos independientes, claros y listos para una demostracion comercial."
               />
             }
           />
@@ -1244,12 +1446,12 @@ function HubLandingScreen({
         <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
           <div>
             <SectionHeading
-              eyebrow="Estructura"
-              title="Una sola plataforma, varias vistas especializadas."
+              eyebrow="Estilo"
+              title="Una portada elegante, clara y lista para presentar."
               description={
                 <ResponsiveCopy
-                  mobile="Hoy construimos las landings; luego escalamos el CMS por roles."
-                  desktop="La arquitectura puede arrancar con vistas publicas diferenciadas y escalar luego a dashboards separados para constructora, juridico y bienes raices."
+                  mobile="La pagina separa cada area con una imagen mas limpia y facil de entender."
+                  desktop="La landing principal ordena la presentacion del grupo y muestra cada frente con una imagen mas moderna, directa y visualmente mejor cuidada."
                 />
               }
             />
@@ -1257,30 +1459,30 @@ function HubLandingScreen({
 
           <div className="grid gap-4">
             <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
-              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Ahora</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Imagen</p>
               <h3 className="mt-3 text-2xl font-semibold text-white">
-                Landings conectadas y entrada mas clara al negocio.
+                Una primera vista mucho mas fuerte.
               </h3>
               <p className="mt-3 text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">
-                El usuario entra por una portada general, elige su area y recibe una narrativa mas precisa del servicio.
+                El carrusel de fondo, los accesos directos y la composicion del hero hacen que la pagina se sienta mas viva y mejor presentada.
               </p>
             </div>
             <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
-              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Despues</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Orden</p>
               <h3 className="mt-3 text-2xl font-semibold text-white">
-                CMS y roles separados por vertical.
+                Cada area se entiende sin esfuerzo.
               </h3>
               <p className="mt-3 text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">
-                El abogado entra a lo juridico, el equipo comercial al inmobiliario y la constructora sigue administrando obras, edificios y cotizaciones.
+                Constructora, estudio juridico y bienes raices aparecen separados desde el inicio para que la navegacion sea mas clara.
               </p>
             </div>
             <div className="rounded-[1.8rem] border border-white/10 bg-white/[0.045] p-5 shadow-xl shadow-black/20 backdrop-blur-xl">
-              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Beneficio</p>
+              <p className="text-xs uppercase tracking-[0.22em] text-[#FFDC63]">Presentacion</p>
               <h3 className="mt-3 text-2xl font-semibold text-white">
-                Leads con mejor contexto desde el primer contacto.
+                Una landing con mejor presencia visual.
               </h3>
               <p className="mt-3 text-sm leading-6 text-stone-400 sm:text-base sm:leading-7">
-                Cada consulta nace ya clasificada por area y eso luego ayuda mucho cuando conectemos formularios, paneles y seguimiento.
+                El resultado se siente mas profesional, mas actual y mucho mas comodo para mostrar al cliente en una reunion o presentacion.
               </p>
             </div>
           </div>
@@ -1307,16 +1509,20 @@ function HubLandingScreen({
 
 function BusinessLandingScreen({
   area,
+  properties,
   location,
   contact,
   onOpenContact,
+  onOpenPropertyLead,
   openFaqId,
   onToggleFaq,
 }: {
   area: BusinessAreaContent;
+  properties: RealEstateProperty[];
   location: string;
   contact: SiteContent["settings"]["contact"];
   onOpenContact: () => void;
+  onOpenPropertyLead: (property: RealEstateProperty) => void;
   openFaqId: string | null;
   onToggleFaq: (id: string) => void;
 }) {
@@ -1377,6 +1583,76 @@ function BusinessLandingScreen({
           </div>
         </div>
       </section>
+
+      {area.slug === "bienes-raices" && properties.length > 0 ? (
+        <section id="propiedades" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
+          <div className="mx-auto max-w-7xl">
+            <SectionHeading
+              eyebrow="Propiedades"
+              title="Casas y oportunidades listas para mover."
+              description={
+                <ResponsiveCopy
+                  mobile="Cada propiedad puede mostrar precio, zona y su propio mapa."
+                  desktop="Bienes raices ya puede publicar propiedades dinamicas con precio, ubicacion, caracteristicas y una entrada directa a contacto."
+                />
+              }
+            />
+
+            <div className="mt-8 grid gap-4 lg:grid-cols-3">
+              {properties.map((property) => (
+                <div
+                  key={property.id}
+                  className="overflow-hidden rounded-[1.8rem] border border-white/10 bg-white/[0.045] shadow-xl shadow-black/20 backdrop-blur-xl"
+                >
+                  <img
+                    src={property.heroImage}
+                    alt={property.title}
+                    className="h-56 w-full object-cover"
+                  />
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.22em] text-[#FFDC63]">
+                          {property.operation}
+                        </p>
+                        <h3 className="mt-3 text-2xl font-semibold text-white">
+                          {property.title}
+                        </h3>
+                      </div>
+                      <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-1 text-xs text-stone-200">
+                        {property.status}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-base font-semibold text-[#FFDC63]">{property.price}</p>
+                    <p className="mt-3 text-sm leading-6 text-stone-300">{property.summary}</p>
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.18em] text-stone-500">
+                      <span>{property.location}</span>
+                      <span>{property.area}</span>
+                      <span>
+                        {property.bedrooms}H / {property.bathrooms}B
+                      </span>
+                    </div>
+                    <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                      <Button className="w-full sm:w-auto" onClick={() => onOpenPropertyLead(property)}>
+                        Consultar propiedad
+                      </Button>
+                      {property.mapEmbedUrl ? (
+                        <Button
+                          variant="outline"
+                          className="w-full sm:w-auto"
+                          onClick={() => window.open(property.mapEmbedUrl, "_blank", "noopener,noreferrer")}
+                        >
+                          Ver mapa
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section id="enfoque" className="gsap-zone px-5 py-14 sm:py-24 md:px-8 md:py-28">
         <div className="mx-auto max-w-7xl">
@@ -1498,7 +1774,10 @@ function DetailViewScreen({
   onBack,
   onLeadIntent,
 }: {
-  detail: DetailState;
+  detail:
+    | { kind: "work"; item: WorkProject }
+    | { kind: "building"; item: BuildingProject }
+    | null;
   activeImage: string;
   onImageSelect: (image: string) => void;
   onBack: () => void;
@@ -1963,8 +2242,230 @@ function DetailViewScreen({
   );
 }
 
+function ServiceDetailScreen({
+  service,
+  activeImage,
+  onImageSelect,
+  onBack,
+  onRequestQuote,
+}: {
+  service: ServiceItem;
+  activeImage: string;
+  onImageSelect: (image: string) => void;
+  onBack: () => void;
+  onRequestQuote: () => void;
+}) {
+  const galleryImages = service.gallery.length > 0 ? service.gallery : service.heroImage ? [service.heroImage] : [];
+
+  return (
+    <motion.div
+      key={`service-${service.slug}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+    >
+      <section className="relative min-h-[84svh] overflow-hidden sm:min-h-screen">
+        {service.heroImage ? (
+          <img
+            src={service.heroImage}
+            alt={service.title}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,220,99,0.18),transparent_24%),linear-gradient(180deg,#14120f_0%,#0c0b09_100%)]" />
+        )}
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.28),rgba(0,0,0,0.46)_35%,rgba(0,0,0,0.88)_100%)]" />
+
+        <div className="relative z-10 mx-auto flex min-h-[84svh] max-w-7xl flex-col justify-end px-5 pb-8 pt-28 sm:min-h-screen sm:pb-12 md:px-8 md:pb-16">
+          <button
+            type="button"
+            onClick={onBack}
+            className="mb-8 inline-flex min-h-11 w-fit items-center gap-2 rounded-full border border-white/15 bg-black/20 px-4 py-2 text-sm text-stone-100 backdrop-blur-xl transition hover:border-[#FFDC63]/35 hover:text-[#FFDC63]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver a servicios
+          </button>
+
+          <div className="max-w-4xl">
+            <StatusPill tone="brand">Servicio</StatusPill>
+            <h1 className="mt-5 text-4xl font-semibold tracking-[-0.06em] text-white sm:text-5xl md:text-7xl">
+              {service.title}
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-stone-200 sm:text-lg sm:leading-8">
+              {service.text}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {service.isPriceVisible && service.priceLabel ? (
+                <StatusPill tone="brand">{service.priceLabel}</StatusPill>
+              ) : (
+                <StatusPill>Cotizacion personalizada</StatusPill>
+              )}
+              {service.requiresLocation ? (
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-stone-200">
+                  <MapPin className="h-3.5 w-3.5 text-[#FFDC63]" />
+                  Requiere ubicacion exacta
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Button onClick={onRequestQuote} className="w-full sm:w-auto">
+                Solicitar cotizacion
+                <ArrowUpRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="detalle-resumen" className="px-5 py-12 md:px-8 md:py-24">
+        <div className="mx-auto grid max-w-7xl gap-7 lg:grid-cols-[0.92fr_1.08fr] lg:gap-10">
+          <div>
+            <SectionHeading
+              eyebrow="Detalle del servicio"
+              title="Una vista clara para explicar alcance, evidencias y solicitud."
+              description="Cada servicio ahora puede tener su propio recorrido, medios visuales y formulario de lead."
+            />
+          </div>
+          <div className="space-y-6">
+            <p className="text-sm leading-7 text-stone-300 sm:text-lg sm:leading-8">
+              {service.description}
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
+                <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Precio</p>
+                <p className="mt-3 text-lg font-semibold text-stone-100">
+                  {service.isPriceVisible && service.priceLabel
+                    ? service.priceLabel
+                    : "Se define segun alcance"}
+                </p>
+              </div>
+              <div className="rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4 backdrop-blur-xl">
+                <p className="text-xs uppercase tracking-[0.24em] text-stone-500">Ubicacion</p>
+                <p className="mt-3 text-lg font-semibold text-stone-100">
+                  {service.requiresLocation
+                    ? "El cliente marca el punto exacto en Google Maps"
+                    : "No es obligatoria para este servicio"}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {galleryImages.length > 0 ? (
+        <section id="detalle-galeria" className="px-5 pb-12 md:px-8 md:pb-24">
+          <div className="mx-auto max-w-7xl">
+            <div className="mb-6 flex flex-col gap-4 md:mb-10 md:flex-row md:items-end md:justify-between">
+              <SectionHeading
+                eyebrow="Galeria"
+                title="Material visual para mostrar mejor el servicio."
+                description="Puedes usar estas imagenes para reforzar el tipo de trabajo, estilo o transformacion del servicio."
+              />
+              <Button variant="outline" className="w-full sm:w-auto" onClick={onRequestQuote}>
+                Abrir formulario
+              </Button>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
+              <div
+                id="detalle-media-top"
+                className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.035]"
+              >
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={`${service.slug}-${activeImage}`}
+                    src={activeImage}
+                    alt={service.title}
+                    initial={{ opacity: 0, scale: 1.02 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.99 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    className="h-[260px] w-full object-cover sm:h-[480px] md:h-[620px]"
+                  />
+                </AnimatePresence>
+              </div>
+
+              <div className="flex gap-4 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-1">
+                {galleryImages.map((image, index) => (
+                  <button
+                    key={`${service.slug}-thumb-${index}`}
+                    type="button"
+                    onClick={() => onImageSelect(image)}
+                    className={`group relative w-[210px] shrink-0 overflow-hidden rounded-[1.5rem] border text-left transition sm:w-auto sm:rounded-[1.8rem] ${
+                      image === activeImage
+                        ? "border-[#FFDC63]/45"
+                        : "border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    <img
+                      src={image}
+                      alt={`${service.title} vista ${index + 1}`}
+                      className="h-32 w-full object-cover transition duration-500 group-hover:scale-105 sm:h-40 md:h-[194px]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+                      <span className="text-xs uppercase tracking-[0.2em] text-stone-200">
+                        Imagen {index + 1}
+                      </span>
+                      {image === activeImage ? (
+                        <span className="rounded-full bg-[#FFDC63] px-3 py-1 text-xs font-medium text-black">
+                          Activa
+                        </span>
+                      ) : null}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {service.beforeAfterItems.length > 0 ? (
+        <section id="detalle-comparador" className="px-5 pb-12 md:px-8 md:pb-24">
+          <div className="mx-auto max-w-7xl">
+            <SectionHeading
+              eyebrow="Transformaciones"
+              title="Comparadores antes y despues para servicios como remodelacion."
+              description="Cada bloque permite mostrar visualmente el cambio real del espacio y reforzar confianza."
+            />
+            <div className="mt-8 grid gap-5 lg:grid-cols-2">
+              {service.beforeAfterItems.map((item) => (
+                <BeforeAfterCard
+                  key={item.id}
+                  title={item.title}
+                  beforeImage={item.beforeImage}
+                  afterImage={item.afterImage}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="px-5 pb-12 md:px-8 md:pb-20">
+        <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-xl shadow-black/20 backdrop-blur-xl sm:p-8">
+          <p className="text-[11px] uppercase tracking-[0.28em] text-[#FFDC63]">Siguiente paso</p>
+          <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+            Solicita una cotizacion para este servicio.
+          </h2>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-stone-300 sm:text-base">
+            El formulario guardara tu lead dentro del CMS y, si este servicio lo requiere, tambien registrara el punto exacto marcado en Google Maps.
+          </p>
+          <Button onClick={onRequestQuote} className="mt-6">
+            Enviar solicitud
+            <ArrowUpRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </section>
+    </motion.div>
+  );
+}
+
 export default function App() {
-  const isAppleMobileSafari = useRef(detectAppleMobileSafari()).current;
+  const isAppleMobileSafari = useMemo(() => detectAppleMobileSafari(), []);
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY?.trim();
   const [content, setContent] = useState<SiteContent>(fallbackContent);
   const [currentPage, setCurrentPage] = useState<PublicPage>(() => {
     const initialRoute = parseRoute();
@@ -1973,7 +2474,11 @@ export default function App() {
       return initialRoute.page;
     }
 
-    if (initialRoute.kind === "work" || initialRoute.kind === "building") {
+    if (
+      initialRoute.kind === "work" ||
+      initialRoute.kind === "building" ||
+      initialRoute.kind === "service"
+    ) {
       return "constructora";
     }
 
@@ -1992,7 +2497,7 @@ export default function App() {
   const [buildingFilter, setBuildingFilter] = useState<"all" | "available" | "planificacion" | "en_progreso" | "finalizado">("all");
   const currentArea =
     currentPage !== "hub" && currentPage !== "constructora"
-      ? businessAreas[currentPage]
+      ? content.businessPages[currentPage]
       : null;
   const currentFaqItems =
     currentPage === "constructora" ? content.faqs : currentArea?.faqs ?? [];
@@ -2000,15 +2505,28 @@ export default function App() {
   const [leadContext, setLeadContext] = useState<{
     interestType: LeadPayload["interestType"];
     referenceSlug?: string;
+    referenceLabel?: string;
     unitLabel?: string;
-  }>({ interestType: "general" });
+    requiresLocation: boolean;
+    contextLabel: string;
+    title?: string;
+    description?: string;
+    messagePlaceholder?: string;
+    successTitle?: string;
+  }>({
+    interestType: "general",
+    requiresLocation: false,
+    contextLabel: "Consulta general",
+  });
   const [leadForm, setLeadForm] = useState<LeadFormState>({
-    firstName: "",
-    lastName: "",
+    fullName: "",
+    nationalId: "",
     phone: "",
     email: "",
-    city: "",
     message: "",
+    locationText: "",
+    locationLat: null,
+    locationLng: null,
   });
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [leadState, setLeadState] = useState<{
@@ -2023,6 +2541,9 @@ export default function App() {
 
   const findBuildingBySlug = (slug: string) =>
     content.buildings.find((item) => item.slug === slug) ?? null;
+
+  const findServiceBySlug = (slug: string) =>
+    content.services.find((item) => item.slug === slug) ?? null;
 
   useEffect(() => {
     let mounted = true;
@@ -2236,7 +2757,9 @@ export default function App() {
     const target =
       currentRoute.kind === "work"
         ? findWorkBySlug(currentRoute.slug)
-        : findBuildingBySlug(currentRoute.slug);
+        : currentRoute.kind === "building"
+          ? findBuildingBySlug(currentRoute.slug)
+          : findServiceBySlug(currentRoute.slug);
 
     if (!target) {
       setCurrentPage("hub");
@@ -2247,7 +2770,7 @@ export default function App() {
     }
 
     setCurrentPage("constructora");
-    const detailPath = buildRoute(currentRoute.kind, currentRoute.slug);
+    const detailPath = buildDetailRoute(currentRoute.kind, currentRoute.slug);
     window.history.replaceState(
       { kind: "page", page: "constructora", app: true },
       "",
@@ -2262,9 +2785,17 @@ export default function App() {
     setDetail(
       currentRoute.kind === "work"
         ? { kind: "work", item: target as WorkProject }
-        : { kind: "building", item: target as BuildingProject }
+        : currentRoute.kind === "building"
+          ? { kind: "building", item: target as BuildingProject }
+          : { kind: "service", item: target as ServiceItem }
     );
-    setActiveDetailImage(target.gallery[0] ?? target.heroImage);
+    setActiveDetailImage(
+      currentRoute.kind === "service"
+        ? (target as ServiceItem).gallery[0] ??
+            (target as ServiceItem).heroImage
+        : (target as WorkProject | BuildingProject).gallery[0] ??
+            (target as WorkProject | BuildingProject).heroImage
+    );
     routeReadyRef.current = true;
     window.scrollTo(0, 0);
   }, [content, loadingContent]);
@@ -2296,7 +2827,9 @@ export default function App() {
       const target =
         currentRoute.kind === "work"
           ? findWorkBySlug(currentRoute.slug)
-          : findBuildingBySlug(currentRoute.slug);
+          : currentRoute.kind === "building"
+            ? findBuildingBySlug(currentRoute.slug)
+            : findServiceBySlug(currentRoute.slug);
 
       if (!target) {
         setCurrentPage("hub");
@@ -2311,9 +2844,17 @@ export default function App() {
       setDetail(
         currentRoute.kind === "work"
           ? { kind: "work", item: target as WorkProject }
-          : { kind: "building", item: target as BuildingProject }
+          : currentRoute.kind === "building"
+            ? { kind: "building", item: target as BuildingProject }
+            : { kind: "service", item: target as ServiceItem }
       );
-      setActiveDetailImage(target.gallery[0] ?? target.heroImage);
+      setActiveDetailImage(
+        currentRoute.kind === "service"
+          ? (target as ServiceItem).gallery[0] ??
+              (target as ServiceItem).heroImage
+          : (target as WorkProject | BuildingProject).gallery[0] ??
+              (target as WorkProject | BuildingProject).heroImage
+      );
       window.scrollTo(0, 0);
     };
 
@@ -2345,10 +2886,22 @@ export default function App() {
 
   const openLeadContext = (
     interestType: LeadPayload["interestType"],
-    referenceSlug?: string,
-    unitLabel?: string
+    options?: Partial<LeadContextState>
   ) => {
-    setLeadContext({ interestType, referenceSlug, unitLabel });
+    setLeadContext({
+      interestType,
+      referenceSlug: options?.referenceSlug,
+      referenceLabel: options?.referenceLabel,
+      unitLabel: options?.unitLabel,
+      requiresLocation: options?.requiresLocation ?? false,
+      contextLabel:
+        options?.contextLabel ??
+        interestTypeLabel(interestType, options?.unitLabel),
+      title: options?.title,
+      description: options?.description,
+      messagePlaceholder: options?.messagePlaceholder,
+      successTitle: options?.successTitle,
+    });
     setLeadState({ loading: false, message: "", error: false });
     setQuoteModalOpen(true);
   };
@@ -2360,7 +2913,7 @@ export default function App() {
     window.history.pushState(
       { kind: "work", slug: item.slug, app: true },
       "",
-      buildRoute("work", item.slug)
+      buildDetailRoute("work", item.slug)
     );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -2372,7 +2925,19 @@ export default function App() {
     window.history.pushState(
       { kind: "building", slug: item.slug, app: true },
       "",
-      buildRoute("building", item.slug)
+      buildDetailRoute("building", item.slug)
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const openService = (item: ServiceItem) => {
+    setDetail({ kind: "service", item });
+    setActiveDetailImage(item.gallery[0] ?? item.heroImage);
+    setMenuOpen(false);
+    window.history.pushState(
+      { kind: "service", slug: item.slug, app: true },
+      "",
+      buildDetailRoute("service", item.slug)
     );
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -2406,13 +2971,14 @@ export default function App() {
         : currentPage === "juridico"
           ? "Estudio juridico"
           : "Bienes raices";
+  const activeBusinessUnit = currentPage === "hub" ? "grupo" : currentPage;
 
-  const quoteModalCopy =
+  const baseQuoteModalCopy =
     currentPage === "juridico"
       ? {
           title: "Solicita asesoria legal",
           description:
-            "Comparte tus datos, ciudad y el contexto de tu consulta. Revisaremos si corresponde a contratos, permisos, regularizacion o soporte legal inmobiliario.",
+            "Comparte tus datos y el contexto de tu consulta. Revisaremos si corresponde a contratos, permisos, regularizacion o soporte legal inmobiliario.",
           messagePlaceholder:
             "Cuentanos sobre tu consulta legal, documentos, tramite o situacion inmobiliaria",
           successTitle: "Gracias por contactar con el estudio juridico",
@@ -2422,7 +2988,7 @@ export default function App() {
         ? {
             title: "Solicita orientacion inmobiliaria",
             description:
-              "Comparte tus datos, ciudad y el tipo de oportunidad que quieres mover. Podemos ayudarte a ordenar la salida comercial del caso.",
+              "Comparte tus datos y el tipo de oportunidad que quieres mover. Podemos ayudarte a ordenar la salida comercial del caso.",
             messagePlaceholder:
               "Cuentanos sobre el inmueble, desarrollo, compra, venta o necesidad comercial",
             successTitle: "Gracias por contactar con bienes raices",
@@ -2432,7 +2998,7 @@ export default function App() {
           ? {
               title: "Solicita orientacion inicial",
               description:
-                "Comparte tus datos, ciudad y lo que necesitas. Derivaremos tu consulta al frente correcto entre constructora, juridico y bienes raices.",
+                "Comparte tus datos y lo que necesitas. Derivaremos tu consulta al frente correcto entre constructora, juridico y bienes raices.",
               messagePlaceholder:
                 "Cuentanos si necesitas construir, respaldo legal o mover una oportunidad inmobiliaria",
               successTitle: "Gracias por contactar con el grupo",
@@ -2441,30 +3007,60 @@ export default function App() {
           : {
               title: "Solicita una cotizacion",
               description:
-                "Comparte tus datos, ciudad y lo que necesitas. Nuestro equipo revisara tu solicitud y te contactara a la brevedad.",
+                "Comparte tus datos y lo que necesitas. Nuestro equipo revisara tu solicitud y te contactara a la brevedad.",
               messagePlaceholder:
                 "Cuentanos sobre tu proyecto, planos, remodelacion o requerimiento",
               successTitle: "Gracias por contactar con Construcciones Mondoza",
               floatingLabel: "Pedir cotizacion",
             };
 
+  const quoteModalCopy = {
+    ...baseQuoteModalCopy,
+    title: leadContext.title ?? baseQuoteModalCopy.title,
+    description: leadContext.description ?? baseQuoteModalCopy.description,
+    messagePlaceholder:
+      leadContext.messagePlaceholder ?? baseQuoteModalCopy.messagePlaceholder,
+    successTitle: leadContext.successTitle ?? baseQuoteModalCopy.successTitle,
+  };
+
   const navLinks: NavLinkItem[] = detail
     ? [
         { label: "Resumen", href: "#detalle-resumen" },
         { label: "Galeria", href: "#detalle-galeria" },
-        {
-          label: detail.kind === "building" ? "Unidades" : "Avances",
-          href: detail.kind === "building" ? "#detalle-unidades" : "#detalle-avances",
-        },
-        ...(detail.item.mapEmbedUrl
+        ...(detail.kind === "service"
+          ? detail.item.beforeAfterItems.length > 0
+            ? [{ label: "Comparador", href: "#detalle-comparador" }]
+            : []
+          : [
+              {
+                label: detail.kind === "building" ? "Unidades" : "Avances",
+                href:
+                  detail.kind === "building"
+                    ? "#detalle-unidades"
+                    : "#detalle-avances",
+              },
+            ]),
+        ...(detail.kind !== "service" && detail.item.mapEmbedUrl
           ? [{ label: "Mapa", href: "#detalle-mapa" }]
           : []),
       ]
     : currentPage === "hub"
       ? [
-          { label: "Unidades", href: "#areas" },
-          { label: "Estructura", href: "#modelo" },
-          { label: "Contacto", href: "#contacto" },
+          {
+            label: "Constructora",
+            href: "/constructora",
+            onClick: () => navigateToPage("constructora"),
+          },
+          {
+            label: "Estudio juridico",
+            href: "/juridico",
+            onClick: () => navigateToPage("juridico"),
+          },
+          {
+            label: "Bienes raices",
+            href: "/bienes-raices",
+            onClick: () => navigateToPage("bienes-raices"),
+          },
         ]
       : currentPage === "constructora"
         ? [
@@ -2474,6 +3070,14 @@ export default function App() {
             { label: "Nosotros", href: "#nosotros" },
             { label: "Contacto", href: "#contacto" },
           ]
+        : currentPage === "bienes-raices"
+          ? [
+              { label: "Servicios", href: "#servicios" },
+              { label: "Propiedades", href: "#propiedades" },
+              { label: "Proceso", href: "#proceso" },
+              { label: "FAQ", href: "#faq" },
+              { label: "Contacto", href: "#contacto" },
+            ]
         : [
             { label: "Servicios", href: "#servicios" },
             { label: "Enfoque", href: "#enfoque" },
@@ -2511,28 +3115,49 @@ export default function App() {
   const submitLead = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (leadContext.requiresLocation && (!leadForm.locationText || leadForm.locationLat === null || leadForm.locationLng === null)) {
+      setLeadState({
+        loading: false,
+        message: "Marca el punto exacto en el mapa para continuar con esta solicitud.",
+        error: true,
+      });
+      return;
+    }
+
     setLeadState({ loading: true, message: "", error: false });
 
     try {
       await createLead({
-        fullName: `${leadForm.firstName} ${leadForm.lastName}`.trim(),
+        fullName: leadForm.fullName,
+        nationalId: leadForm.nationalId,
         phone: leadForm.phone,
-        email: leadForm.email,
-        message: `Area: ${activeLeadAreaLabel}\nCiudad: ${leadForm.city}\n${leadForm.message}`,
+        email: leadForm.email || undefined,
+        message: `Area: ${activeLeadAreaLabel}\nContexto: ${leadContext.contextLabel}\n${leadForm.message}`,
+        businessUnit: activeBusinessUnit,
         interestType: leadContext.interestType,
         referenceSlug: leadContext.referenceSlug,
+        referenceLabel: leadContext.referenceLabel,
         unitLabel: leadContext.unitLabel,
+        locationText: leadForm.locationText || undefined,
+        locationLat: leadForm.locationLat ?? undefined,
+        locationLng: leadForm.locationLng ?? undefined,
       });
 
       setLeadForm({
-        firstName: "",
-        lastName: "",
+        fullName: "",
+        nationalId: "",
         phone: "",
         email: "",
-        city: "",
         message: "",
+        locationText: "",
+        locationLat: null,
+        locationLng: null,
       });
-      setLeadContext({ interestType: "general" });
+      setLeadContext({
+        interestType: "general",
+        requiresLocation: false,
+        contextLabel: "Consulta general",
+      });
       setLeadState({
         loading: false,
         message:
@@ -2550,6 +3175,39 @@ export default function App() {
         error: true,
       });
     }
+  };
+
+  const openProjectLeadIntent = (
+    interestType: LeadPayload["interestType"],
+    slug?: string,
+    unitLabel?: string
+  ) => {
+    const referenceLabel =
+      detail?.kind === "work" || detail?.kind === "building"
+        ? detail.item.title
+        : undefined;
+
+    openLeadContext(interestType, {
+      referenceSlug: slug,
+      referenceLabel,
+      unitLabel,
+      contextLabel: interestTypeLabel(interestType, unitLabel),
+    });
+  };
+
+  const openServiceLeadIntent = (service: ServiceItem) => {
+    openLeadContext("servicio", {
+      referenceSlug: service.slug,
+      referenceLabel: service.title,
+      requiresLocation: service.requiresLocation,
+      contextLabel: service.title,
+      title: `Solicita una cotizacion para ${service.title.toLowerCase()}`,
+      description:
+        service.leadPrompt ||
+        "Comparte tu necesidad, datos de contacto y el alcance general del servicio.",
+      messagePlaceholder: `Cuentanos que necesitas sobre ${service.title.toLowerCase()}`,
+      successTitle: `Gracias por consultar ${service.title.toLowerCase()}`,
+    });
   };
 
   return (
@@ -2616,6 +3274,18 @@ export default function App() {
                 <a
                   key={link.label}
                   href={link.href}
+                  onClick={(event) => {
+                    if (link.onClick) {
+                      event.preventDefault();
+                      link.onClick();
+                    } else if (link.href.startsWith("#")) {
+                      event.preventDefault();
+                      document.querySelector(link.href)?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }
+                  }}
                   className="transition hover:text-[#9a6a42]"
                 >
                   {link.label}
@@ -2687,7 +3357,7 @@ export default function App() {
         links={navLinks.map((link) => ({
           label: link.label,
           href: link.href,
-          onClick: link.href === "#detalle-hero" ? closeDetail : undefined,
+          onClick: link.onClick ?? (link.href === "#detalle-hero" ? closeDetail : undefined),
         }))}
         actionLabel={detail ? "Volver" : quoteModalCopy.floatingLabel}
         actionHref={detail ? "#detalle-hero" : "#contacto"}
@@ -2702,12 +3372,22 @@ export default function App() {
         onChange={(field, value) =>
           setLeadForm((current) => ({ ...current, [field]: value }))
         }
+        onLocationChange={(location) =>
+          setLeadForm((current) => ({
+            ...current,
+            locationText: location.text,
+            locationLat: location.lat,
+            locationLng: location.lng,
+          }))
+        }
         onSubmit={submitLead}
         loading={leadState.loading}
         success={Boolean(leadState.message) && !leadState.error}
         error={leadState.error}
         successMessage={leadState.message}
-        contextLabel={interestTypeLabel(leadContext.interestType, leadContext.unitLabel)}
+        contextLabel={leadContext.contextLabel}
+        requireLocation={leadContext.requiresLocation}
+        googleMapsApiKey={googleMapsApiKey}
         isAppleMobileSafari={isAppleMobileSafari}
         title={quoteModalCopy.title}
         description={quoteModalCopy.description}
@@ -2723,13 +3403,21 @@ export default function App() {
 
       <main className="relative z-10">
         <AnimatePresence mode="wait">
-          {detail ? (
+          {detail?.kind === "service" ? (
+            <ServiceDetailScreen
+              service={detail.item}
+              activeImage={activeDetailImage}
+              onImageSelect={handleDetailImageSelect}
+              onBack={closeDetail}
+              onRequestQuote={() => openServiceLeadIntent(detail.item)}
+            />
+          ) : detail ? (
             <DetailViewScreen
               detail={detail}
               activeImage={activeDetailImage}
               onImageSelect={handleDetailImageSelect}
               onBack={closeDetail}
-              onLeadIntent={openLeadContext}
+              onLeadIntent={openProjectLeadIntent}
             />
           ) : currentPage === "hub" ? (
             <HubLandingScreen
@@ -2860,7 +3548,12 @@ export default function App() {
 
                   <div className="grid gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
                     {content.services.map((service, index) => (
-                      <ServiceCard key={service.id} service={service} iconIndex={index} />
+                      <ServiceCard
+                        key={service.id}
+                        service={service}
+                        iconIndex={index}
+                        onClick={() => openService(service)}
+                      />
                     ))}
                   </div>
                 </div>
@@ -3188,10 +3881,25 @@ export default function App() {
             </motion.div>
           ) : (
             <BusinessLandingScreen
-              area={businessAreas[currentPage]}
+              area={content.businessPages[currentPage]}
+              properties={
+                currentPage === "bienes-raices" ? content.properties : []
+              }
               location={content.settings.location}
               contact={content.settings.contact}
               onOpenContact={() => openLeadContext("general")}
+              onOpenPropertyLead={(property) =>
+                openLeadContext("general", {
+                  referenceSlug: property.slug,
+                  referenceLabel: property.title,
+                  contextLabel: property.title,
+                  title: `Consulta por ${property.title}`,
+                  description:
+                    "Comparte tus datos y te responderemos con informacion sobre esta propiedad, precio, ubicacion y disponibilidad.",
+                  messagePlaceholder: `Quiero consultar por ${property.title} y conocer disponibilidad, condiciones o visita.`,
+                  successTitle: `Gracias por consultar ${property.title}`,
+                })
+              }
               openFaqId={openFaqId}
               onToggleFaq={(id) =>
                 setOpenFaqId((current) => (current === id ? null : id))

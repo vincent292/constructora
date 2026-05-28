@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   ArrowLeft,
+  Bell,
   Building2,
   FolderKanban,
+  Gavel,
   ImagePlus,
   LoaderCircle,
   LogOut,
@@ -17,6 +19,7 @@ import {
   Trash2,
   Upload,
   Users,
+  Wrench,
   X,
 } from "lucide-react";
 import type {
@@ -27,7 +30,10 @@ import type {
   DetailMetric,
   FaqItem,
   LeadStatus,
+  PropertyOperation,
+  PropertyStatus,
   ProcessStep,
+  RealEstateProperty,
   ServiceItem,
   SiteSettings,
   ProgressUpdate,
@@ -36,11 +42,19 @@ import type {
   TestimonialItem,
   WorkProject,
 } from "./types/cms";
+import type {
+  BusinessAreaContent,
+  CmsBusinessUnit,
+  ManagedBusinessSlug,
+} from "./types/business";
 import {
   buildEmptyBuilding,
+  buildEmptyProperty,
   buildEmptyTeamMember,
   buildEmptyWork,
   deleteBuilding,
+  deleteProperty,
+  deleteService,
   deleteTeamMember,
   deleteWork,
   type CmsStaffProfile,
@@ -50,7 +64,10 @@ import {
   replaceBuildingAssignments,
   replaceWorkAssignments,
   saveAdminProfile,
+  saveBusinessAreaPage,
   saveBuilding,
+  saveProperty,
+  saveService,
   saveServices,
   saveSiteSettings,
   saveTeamMember,
@@ -64,10 +81,24 @@ import {
   type CmsDashboardData,
   type LeadRecord,
 } from "./lib/cms-admin";
+import { fallbackContent } from "./data/fallback-content";
 import { isSupabaseConfigured } from "./lib/supabase";
 
-type CmsTab = "works" | "buildings" | "team" | "leads" | "settings";
-type ModalType = "work" | "building" | "team" | "staff" | null;
+type CmsTab =
+  | "works"
+  | "buildings"
+  | "team"
+  | "services"
+  | "landing-content"
+  | "landing-services"
+  | "landing-highlights"
+  | "landing-process"
+  | "landing-faqs"
+  | "properties"
+  | "leads"
+  | "settings";
+type ModalType = "work" | "building" | "team" | "staff" | "property" | null;
+type CmsWorkspace = "constructora" | ManagedBusinessSlug;
 
 type WorkEditorState = {
   id?: string;
@@ -116,6 +147,26 @@ type BuildingEditorState = {
   assignedStaffIds: string[];
 };
 
+type PropertyEditorState = {
+  id?: string;
+  slug: string;
+  title: string;
+  category: string;
+  operation: PropertyOperation;
+  status: PropertyStatus;
+  location: string;
+  price: string;
+  area: string;
+  bedrooms: number;
+  bathrooms: number;
+  summary: string;
+  description: string;
+  heroImage: string;
+  gallery: string[];
+  features: string[];
+  mapEmbedUrl: string;
+};
+
 type UnitEditorState = {
   id: string;
   title: string;
@@ -146,17 +197,28 @@ type StaffEditorState = {
   fullName: string;
   email: string;
   role: CmsUserRole;
+  businessUnit: CmsBusinessUnit;
   assignedWorkIds: string[];
   assignedBuildingIds: string[];
 };
 
 type SiteSettingsEditorState = SiteSettings;
+type BusinessPageEditorState = BusinessAreaContent;
 
 const projectStatuses: ProjectStatus[] = [
   "planificacion",
   "en_progreso",
   "finalizado",
 ];
+
+const propertyStatuses: PropertyStatus[] = [
+  "disponible",
+  "reservado",
+  "vendido",
+  "alquilado",
+];
+
+const propertyOperations: PropertyOperation[] = ["venta", "alquiler"];
 
 const leadStatuses: LeadStatus[] = [
   "nuevo",
@@ -173,9 +235,72 @@ const tabDefinitions: {
   { key: "works", label: "Obras", icon: FolderKanban },
   { key: "buildings", label: "Edificios", icon: Building2 },
   { key: "team", label: "Nosotros", icon: Users },
+  { key: "services", label: "Servicios", icon: Wrench },
+  { key: "landing-content", label: "Portada", icon: ShieldCheck },
+  { key: "landing-services", label: "Servicios", icon: Wrench },
+  { key: "landing-highlights", label: "Enfoque", icon: MessageSquareMore },
+  { key: "landing-process", label: "Proceso", icon: FolderKanban },
+  { key: "landing-faqs", label: "FAQs", icon: Mail },
+  { key: "properties", label: "Propiedades", icon: Building2 },
   { key: "leads", label: "Leads", icon: Mail },
   { key: "settings", label: "Ajustes", icon: ShieldCheck },
 ];
+
+const workspaceOptions: {
+  key: CmsWorkspace;
+  label: string;
+  detail: string;
+  icon: typeof FolderKanban;
+}[] = [
+  {
+    key: "constructora",
+    label: "Constructora",
+    detail: "Obras, edificios, servicios y landing principal.",
+    icon: FolderKanban,
+  },
+  {
+    key: "juridico",
+    label: "Estudio juridico",
+    detail: "Landing legal, mensajes, FAQs y leads del estudio.",
+    icon: Gavel,
+  },
+  {
+    key: "bienes-raices",
+    label: "Bienes raices",
+    detail: "Landing comercial, enfoque inmobiliario y leads.",
+    icon: Building2,
+  },
+];
+
+const workspaceTabMap: Record<CmsWorkspace, CmsTab[]> = {
+  constructora: ["works", "buildings", "services", "team", "leads", "settings"],
+  juridico: [
+    "landing-content",
+    "landing-services",
+    "landing-highlights",
+    "landing-faqs",
+    "leads",
+  ],
+  "bienes-raices": [
+    "landing-content",
+    "landing-services",
+    "properties",
+    "landing-process",
+    "landing-faqs",
+    "leads",
+  ],
+};
+
+const workspaceTabLabelOverrides: Partial<
+  Record<CmsWorkspace, Partial<Record<CmsTab, string>>>
+> = {
+  juridico: {
+    "landing-highlights": "Mensajes",
+  },
+  "bienes-raices": {
+    "landing-process": "Proceso comercial",
+  },
+};
 
 const authHighlights = [
   {
@@ -234,12 +359,36 @@ function roleLabel(role: CmsUserRole) {
   return "Administrador";
 }
 
-function canAccessTab(role: CmsUserRole, tab: CmsTab) {
+function businessUnitLabel(unit: CmsBusinessUnit) {
+  if (unit === "grupo") return "Grupo";
+  if (unit === "juridico") return "Estudio juridico";
+  if (unit === "bienes-raices") return "Bienes raices";
+  return "Constructora";
+}
+
+function canAccessTab(role: CmsUserRole, tab: CmsTab, workspace: CmsWorkspace) {
+  if (workspace !== "constructora") {
+    return workspaceTabMap[workspace].includes(tab);
+  }
+
   if (role === "admin") return true;
+  if (tab === "services") return false;
   if (tab === "settings") return false;
   if (role === "architect") return tab === "works" || tab === "buildings" || tab === "team";
   if (role === "site_manager") return tab === "works" || tab === "buildings";
   return tab === "buildings" || tab === "leads";
+}
+
+function getWorkspaceTabLabel(workspace: CmsWorkspace, tab: CmsTab) {
+  return (
+    workspaceTabLabelOverrides[workspace]?.[tab] ??
+    tabDefinitions.find((item) => item.key === tab)?.label ??
+    tab
+  );
+}
+
+function defaultTabForWorkspace(workspace: CmsWorkspace): CmsTab {
+  return workspaceTabMap[workspace][0];
 }
 
 function statusLabel(value: string) {
@@ -255,6 +404,18 @@ function leadLabel(value: string) {
   return "Nuevo";
 }
 
+function propertyStatusLabel(value: PropertyStatus) {
+  if (value === "reservado") return "Reservado";
+  if (value === "vendido") return "Vendido";
+  if (value === "alquilado") return "Alquilado";
+  return "Disponible";
+}
+
+function propertyOperationLabel(value: PropertyOperation) {
+  if (value === "alquiler") return "Alquiler";
+  return "Venta";
+}
+
 function normalizeWhatsappPhone(phone: string) {
   const digits = phone.replace(/[^\d]/g, "");
 
@@ -266,6 +427,19 @@ function normalizeWhatsappPhone(phone: string) {
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "object" && error !== null) {
+    const maybeCode = "code" in error ? error.code : undefined;
+    const maybeMessage = "message" in error ? error.message : undefined;
+
+    if (
+      maybeCode === "23505" &&
+      typeof maybeMessage === "string" &&
+      maybeMessage.includes("services_slug_key")
+    ) {
+      return "Ya existe otro servicio con ese slug. Cambia el slug o usa otro titulo.";
+    }
+  }
+
   if (error instanceof Error && error.message.trim()) {
     return error.message;
   }
@@ -317,12 +491,15 @@ function CmsBackground() {
 function CardShell({
   children,
   className = "",
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <div
+      id={id}
       className={`rounded-[2rem] border border-[#d9c8b0] bg-white/70 shadow-[0_24px_60px_rgba(88,62,28,0.08)] backdrop-blur-xl ${className}`}
     >
       {children}
@@ -422,6 +599,33 @@ function SelectField({
   );
 }
 
+function CheckboxField({
+  label,
+  checked,
+  onChange,
+  description,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  description?: string;
+}) {
+  return (
+    <label className="flex items-start gap-3 rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-sm text-stone-700">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1 h-4 w-4 rounded border-stone-300 text-[#b88b16] focus:ring-[#b88b16]"
+      />
+      <span>
+        <strong className="block text-stone-900">{label}</strong>
+        {description ? <span className="mt-1 block text-stone-500">{description}</span> : null}
+      </span>
+    </label>
+  );
+}
+
 function toWorkEditorState(work: Omit<WorkProject, "id"> & { id?: string }): WorkEditorState {
   return {
     id: work.id,
@@ -475,6 +679,30 @@ function toBuildingEditorState(
   };
 }
 
+function toPropertyEditorState(
+  property: Omit<RealEstateProperty, "id"> & { id?: string }
+): PropertyEditorState {
+  return {
+    id: property.id,
+    slug: property.slug,
+    title: property.title,
+    category: property.category,
+    operation: property.operation,
+    status: property.status,
+    location: property.location,
+    price: property.price,
+    area: property.area,
+    bedrooms: property.bedrooms,
+    bathrooms: property.bathrooms,
+    summary: property.summary,
+    description: property.description,
+    heroImage: property.heroImage,
+    gallery: property.gallery,
+    features: property.features,
+    mapEmbedUrl: property.mapEmbedUrl ?? "",
+  };
+}
+
 function toTeamEditorState(member: Omit<TeamMember, "id"> & { id?: string }): TeamEditorState {
   return {
     id: member.id,
@@ -491,6 +719,7 @@ function toStaffEditorState(profile?: CmsStaffProfile): StaffEditorState {
     fullName: profile?.fullName ?? "",
     email: profile?.email ?? "",
     role: profile?.role ?? "architect",
+    businessUnit: profile?.businessUnit ?? "constructora",
     assignedWorkIds: profile?.assignedWorkIds ?? [],
     assignedBuildingIds: profile?.assignedBuildingIds ?? [],
   };
@@ -520,9 +749,18 @@ function buildEmptyBranch(): BranchOffice {
 
 function buildEmptyService(): ServiceEditorState {
   return {
-    id: `service-${Date.now()}`,
+    id: crypto.randomUUID(),
+    slug: "",
     title: "",
     text: "",
+    description: "",
+    heroImage: "",
+    gallery: [],
+    priceLabel: "",
+    isPriceVisible: false,
+    requiresLocation: false,
+    leadPrompt: "",
+    beforeAfterItems: [],
   };
 }
 
@@ -551,6 +789,66 @@ function buildEmptyFaq(): FaqEditorState {
     question: "",
     answer: "",
   };
+}
+
+function cloneBusinessPage(page: BusinessAreaContent): BusinessPageEditorState {
+  return {
+    ...page,
+    services: page.services.map((item) => ({ ...item })),
+    highlights: page.highlights.map((item) => ({ ...item })),
+    process: page.process.map((item) => ({ ...item })),
+    faqs: page.faqs.map((item) => ({ ...item })),
+  };
+}
+
+function buildServiceSlug(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizeServiceDraft(service: ServiceEditorState): ServiceEditorState {
+  const normalizedTitle = service.title.trim();
+  const normalizedText = service.text.trim();
+  const normalizedSlug = service.slug.trim() || buildServiceSlug(normalizedTitle);
+
+  return {
+    ...service,
+    id: service.id || crypto.randomUUID(),
+    slug: normalizedSlug,
+    title: normalizedTitle,
+    text: normalizedText,
+    description: service.description.trim() || normalizedText,
+    leadPrompt: service.leadPrompt.trim() || normalizedText,
+    priceLabel: service.isPriceVisible ? service.priceLabel?.trim() ?? "" : "",
+    beforeAfterItems: service.beforeAfterItems.map((item) => ({
+      ...item,
+      title: item.title.trim(),
+      beforeImage: item.beforeImage.trim(),
+      afterImage: item.afterImage.trim(),
+    })),
+  };
+}
+
+function validateServiceDraft(service: ServiceEditorState) {
+  if (!service.title.trim()) return "El servicio necesita un titulo.";
+  if (!service.text.trim()) return "El servicio necesita un texto corto para la card.";
+  if (service.isPriceVisible && !String(service.priceLabel ?? "").trim()) {
+    return "Activas precio visible, pero falta escribir el precio.";
+  }
+
+  const incompleteComparator = service.beforeAfterItems.find(
+    (item) =>
+      !item.title.trim() || !item.beforeImage.trim() || !item.afterImage.trim()
+  );
+
+  if (incompleteComparator) {
+    return "Cada comparador antes/despues debe tener titulo, imagen antes e imagen despues.";
+  }
+
+  return "";
 }
 
 function MediaField({
@@ -809,6 +1107,8 @@ function CmsHeader({
   description,
   viewerName,
   viewerRole,
+  viewerBusinessUnit,
+  notificationCount = 3,
   onLogout,
   onOpenNavigation,
 }: {
@@ -816,38 +1116,52 @@ function CmsHeader({
   description: string;
   viewerName: string;
   viewerRole: CmsUserRole;
+  viewerBusinessUnit: CmsBusinessUnit;
+  notificationCount?: number;
   onLogout: () => void;
   onOpenNavigation: () => void;
 }) {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-black/55 px-5 py-5 shadow-2xl shadow-black/20 backdrop-blur-xl sm:px-6">
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+    <div className="rounded-[1.7rem] border border-white/10 bg-black/55 px-4 py-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:px-5">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <button
             type="button"
             onClick={onOpenNavigation}
-            className="inline-flex h-12 items-center justify-center gap-2 self-start rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-medium text-white xl:hidden"
+            className="inline-flex h-10 items-center justify-center gap-2 self-start rounded-full border border-white/10 bg-white/[0.05] px-4 text-sm font-medium text-white xl:hidden"
           >
             <Menu className="h-4 w-4" />
             Navegacion
           </button>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end">
-            <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.22em] text-stone-500">Sesion</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.05] px-4 py-2.5">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-stone-500">Sesion</p>
               <p className="mt-1 font-medium text-white">{viewerName}</p>
-              <p className="mt-1 text-sm text-[#FFDC63]">{roleLabel(viewerRole)}</p>
+              <p className="mt-1 text-sm text-[#FFDC63]">
+                {roleLabel(viewerRole)} · {businessUnitLabel(viewerBusinessUnit)}
+              </p>
             </div>
+            <button
+              type="button"
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-white"
+              aria-label="Notificaciones"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[#FFDC63] px-1 text-[10px] font-semibold text-black">
+                {notificationCount}
+              </span>
+            </button>
             <a
               href="/"
-              className="inline-flex h-12 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-5 text-sm font-medium text-white"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] px-4 text-sm font-medium text-white"
             >
               Ver sitio
             </a>
             <button
               type="button"
               onClick={onLogout}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
             >
               <LogOut className="h-4 w-4" />
               Salir
@@ -856,14 +1170,14 @@ function CmsHeader({
         </div>
 
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#FFDC63]/20 bg-[#FFDC63]/10 px-4 py-2 text-[11px] uppercase tracking-[0.28em] text-[#FFDC63]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#FFDC63]/20 bg-[#FFDC63]/10 px-3 py-1.5 text-[11px] uppercase tracking-[0.28em] text-[#FFDC63]">
             <ShieldCheck className="h-3.5 w-3.5" />
             CMS Mondoza
           </div>
-          <h1 className="mt-4 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">
+          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-white sm:text-3xl">
             {title}
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-7 text-stone-300 sm:text-base">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-300 sm:text-base">
             {description}
           </p>
         </div>
@@ -891,27 +1205,125 @@ function SearchField({
   );
 }
 
-function DashboardStatCard({
-  label,
-  value,
-  hint,
+function CmsSidebar({
+  allowedWorkspaces,
+  activeWorkspace,
+  onSelectWorkspace,
+  visibleTabs,
+  activeTab,
+  onSelectTab,
+  viewerName,
+  viewerRole,
+  viewerBusinessUnit,
+  message,
+  error,
 }: {
-  label: string;
-  value: string;
-  hint: string;
+  allowedWorkspaces: typeof workspaceOptions;
+  activeWorkspace: CmsWorkspace;
+  onSelectWorkspace: (workspace: CmsWorkspace) => void;
+  visibleTabs: typeof tabDefinitions;
+  activeTab: CmsTab;
+  onSelectTab: (tab: CmsTab) => void;
+  viewerName: string;
+  viewerRole: CmsUserRole;
+  viewerBusinessUnit: CmsBusinessUnit;
+  message: string;
+  error: boolean;
 }) {
   return (
-    <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] p-4 shadow-xl shadow-black/10 backdrop-blur-xl">
-      <p className="text-[11px] uppercase tracking-[0.24em] text-stone-500">{label}</p>
-      <p className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-stone-400">{hint}</p>
-    </div>
+    <aside className="hidden xl:block">
+      <div className="sticky top-4 space-y-3">
+        <div className="rounded-[2rem] border border-white/10 bg-black/55 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl">
+          <div className="rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,220,99,0.14),rgba(255,255,255,0.04))] p-4">
+            <img src="/logo/logo.png" alt="Mendoza" className="h-auto w-[94px] object-contain" />
+            <p className="mt-4 text-sm leading-6 text-stone-300">
+              Panel central para tus tres landings y su contenido operativo.
+            </p>
+          </div>
+
+          <div className="mt-4 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-4">
+            <p className="text-xs uppercase tracking-[0.22em] text-stone-500">Sesion</p>
+            <p className="mt-2 font-medium text-white">{viewerName}</p>
+            <p className="mt-1 text-sm text-[#FFDC63]">{roleLabel(viewerRole)}</p>
+            <p className="mt-3 text-xs uppercase tracking-[0.2em] text-stone-500">
+              {businessUnitLabel(viewerBusinessUnit)}
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <p className="px-1 text-xs uppercase tracking-[0.22em] text-stone-500">
+              Unidades
+            </p>
+            <div className="mt-3 grid gap-2">
+              {allowedWorkspaces.map((workspace) => {
+                const Icon = workspace.icon;
+                const active = activeWorkspace === workspace.key;
+                return (
+                  <button
+                    key={workspace.key}
+                    type="button"
+                    onClick={() => onSelectWorkspace(workspace.key)}
+                    className={`rounded-[1.4rem] border p-3 text-left transition ${
+                      active
+                        ? "border-[#FFDC63]/35 bg-[#FFDC63]/12 text-white"
+                        : "border-white/10 bg-white/[0.04] text-stone-200 hover:bg-white/[0.08]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={`h-4 w-4 ${active ? "text-[#FFDC63]" : "text-stone-400"}`} />
+                      <span className="text-sm font-medium">{workspace.label}</span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-stone-400">{workspace.detail}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="px-1 text-xs uppercase tracking-[0.22em] text-stone-500">
+              Navegacion
+            </p>
+            <div className="mt-3 grid gap-2">
+              {visibleTabs.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onSelectTab(key)}
+                  className={`flex items-center gap-3 rounded-[1.3rem] px-4 py-3 text-left transition ${
+                    activeTab === key
+                      ? "bg-[#FFDC63] text-black"
+                      : "bg-white/[0.05] text-white hover:bg-white/[0.09]"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {message ? (
+            <div
+              className={`mt-4 rounded-[1.4rem] px-4 py-3 text-sm ${
+                error ? "bg-rose-500/10 text-rose-200" : "bg-emerald-500/10 text-emerald-200"
+              }`}
+            >
+              {message}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </aside>
   );
 }
 
 function CmsMobileNavigation({
   open,
   onClose,
+  workspaces,
+  activeWorkspace,
+  onSelectWorkspace,
   visibleTabs,
   activeTab,
   onSelectTab,
@@ -920,6 +1332,9 @@ function CmsMobileNavigation({
 }: {
   open: boolean;
   onClose: () => void;
+  workspaces: typeof workspaceOptions;
+  activeWorkspace: CmsWorkspace;
+  onSelectWorkspace: (workspace: CmsWorkspace) => void;
   visibleTabs: typeof tabDefinitions;
   activeTab: CmsTab;
   onSelectTab: (tab: CmsTab) => void;
@@ -957,6 +1372,30 @@ function CmsMobileNavigation({
               <X className="h-4 w-4" />
             </button>
           </div>
+        </div>
+
+        <div className="mt-4 grid gap-2">
+          {workspaces.map((workspace) => {
+            const Icon = workspace.icon;
+            return (
+              <button
+                key={workspace.key}
+                type="button"
+                onClick={() => {
+                  onSelectWorkspace(workspace.key);
+                  onClose();
+                }}
+                className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition ${
+                  activeWorkspace === workspace.key
+                    ? "bg-[#FFDC63] text-black"
+                    : "bg-white/[0.05] text-white hover:bg-white/[0.09]"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {workspace.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="mt-4 grid gap-2">
@@ -1045,6 +1484,9 @@ function StaffAccessCard({
           </p>
           <h3 className="mt-2 text-xl font-semibold">{profile.fullName}</h3>
           <p className="mt-1 text-sm text-stone-400">{profile.email || "Sin correo"}</p>
+          <p className="mt-3 text-xs uppercase tracking-[0.2em] text-stone-500">
+            {businessUnitLabel(profile.businessUnit)}
+          </p>
         </div>
         <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-stone-200">
           {profile.assignedWorkIds.length + profile.assignedBuildingIds.length} asignaciones
@@ -1460,6 +1902,57 @@ function BuildingCard({
   );
 }
 
+function RealEstatePropertyCard({
+  property,
+  onEdit,
+}: {
+  property: RealEstateProperty;
+  onEdit: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onEdit}
+      className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05] text-left shadow-2xl shadow-black/15 transition hover:-translate-y-1"
+    >
+      <img
+        src={property.heroImage}
+        alt={property.title}
+        className="h-56 w-full object-cover transition duration-500 group-hover:scale-[1.03]"
+      />
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.24em] text-[#b88b16]">
+              {propertyOperationLabel(property.operation)}
+            </p>
+            <h3 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-white">
+              {property.title}
+            </h3>
+          </div>
+          <span className="rounded-full bg-[#fff1c3] px-3 py-1 text-xs font-medium text-[#8c6611]">
+            {propertyStatusLabel(property.status)}
+          </span>
+        </div>
+        <p className="mt-2 text-sm font-medium text-[#FFDC63]">{property.price}</p>
+        <p className="mt-4 line-clamp-3 text-sm leading-7 text-stone-300">
+          {property.summary}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3 text-sm text-stone-400">
+          <span className="inline-flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-[#b88b16]" />
+            {property.location}
+          </span>
+          <span>{property.area}</span>
+          <span>
+            {property.bedrooms}H / {property.bathrooms}B
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function TeamMemberCard({
   member,
   onEdit,
@@ -1502,7 +1995,11 @@ function LeadCard({
     `Hola ${lead.fullName}, gracias por contactar con Mondoza Construcciones.`,
     "Recibimos tu solicitud y podemos realizarte una cotizacion segun lo que necesitas.",
     lead.unitLabel ? `Unidad consultada: ${lead.unitLabel}` : "",
-    lead.referenceSlug ? `Referencia: ${lead.referenceSlug}` : "",
+    lead.referenceLabel
+      ? `Referencia: ${lead.referenceLabel}`
+      : lead.referenceSlug
+        ? `Referencia: ${lead.referenceSlug}`
+        : "",
     "Podemos coordinar los detalles por este medio.",
   ]
     .filter(Boolean)
@@ -1529,9 +2026,21 @@ function LeadCard({
           <div>
             <h3 className="text-xl font-semibold text-white">{lead.fullName}</h3>
             <p className="mt-1 text-sm text-stone-400">
-              {lead.email} / {lead.phone}
+              {lead.email ? `${lead.email} / ` : ""}
+              {lead.phone}
             </p>
-            {(lead.referenceSlug || lead.unitLabel) && (
+            <p className="mt-2 text-sm text-stone-400">Carnet: {lead.nationalId}</p>
+            {(lead.referenceLabel || lead.referenceSlug || lead.unitLabel) && (
+              <p className="mt-2 text-sm text-[#FFDC63]">
+                {[lead.referenceLabel, lead.referenceSlug, lead.unitLabel]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            )}
+            {lead.locationText ? (
+              <p className="mt-2 text-sm text-stone-300">{lead.locationText}</p>
+            ) : null}
+            {lead.id === "__legacy_reference_hidden__" && (
               <p className="mt-2 text-sm text-[#FFDC63]">
                 {[lead.referenceSlug, lead.unitLabel].filter(Boolean).join(" · ")}
               </p>
@@ -1540,6 +2049,17 @@ function LeadCard({
           <p className="max-w-3xl whitespace-pre-line text-sm leading-7 text-stone-300">
             {lead.message}
           </p>
+          {lead.locationLat !== undefined && lead.locationLng !== undefined ? (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${lead.locationLat},${lead.locationLng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-[#FFDC63]/25 bg-[#FFDC63]/10 px-4 py-2 text-sm font-medium text-[#FFDC63]"
+            >
+              <MapPin className="h-4 w-4" />
+              Ver punto en Google Maps
+            </a>
+          ) : null}
         </div>
         <div className="grid gap-3 rounded-[1.6rem] border border-white/10 bg-black/25 p-4">
           <label className="grid gap-2 text-sm text-stone-200">
@@ -1618,11 +2138,14 @@ export default function CmsApp() {
     services: [],
     works: [],
     buildings: [],
+    properties: [],
     team: [],
     leads: [],
-    viewer: { fullName: "Administrador", role: "admin" },
+    businessPages: fallbackContent.businessPages,
+    viewer: { fullName: "Administrador", role: "admin", businessUnit: "grupo" },
     staff: [],
   });
+  const [activeWorkspace, setActiveWorkspace] = useState<CmsWorkspace>("constructora");
   const [activeTab, setActiveTab] = useState<CmsTab>("works");
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [workForm, setWorkForm] = useState<WorkEditorState>(
@@ -1630,6 +2153,9 @@ export default function CmsApp() {
   );
   const [buildingForm, setBuildingForm] = useState<BuildingEditorState>(
     toBuildingEditorState(buildEmptyBuilding())
+  );
+  const [propertyForm, setPropertyForm] = useState<PropertyEditorState>(
+    toPropertyEditorState(buildEmptyProperty())
   );
   const [teamForm, setTeamForm] = useState<TeamEditorState>(
     toTeamEditorState(buildEmptyTeamMember())
@@ -1648,6 +2174,9 @@ export default function CmsApp() {
     buildEmptyTestimonial()
   );
   const [faqForm, setFaqForm] = useState<FaqEditorState>(buildEmptyFaq());
+  const [businessPageForm, setBusinessPageForm] = useState<BusinessPageEditorState>(
+    cloneBusinessPage(dashboard.businessPages.juridico)
+  );
   const [editingUnitIndex, setEditingUnitIndex] = useState<number | null>(null);
   const [editingBranchIndex, setEditingBranchIndex] = useState<number | null>(null);
   const [editingServiceIndex, setEditingServiceIndex] = useState<number | null>(null);
@@ -1663,6 +2192,7 @@ export default function CmsApp() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [workSearch, setWorkSearch] = useState("");
   const [buildingSearch, setBuildingSearch] = useState("");
+  const [propertySearch, setPropertySearch] = useState("");
   const [teamSearch, setTeamSearch] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
   const [servicesForm, setServicesForm] = useState<ServiceItem[]>([]);
@@ -1677,9 +2207,30 @@ export default function CmsApp() {
     error: false,
   });
 
-  const visibleTabs = tabDefinitions.filter((tab) =>
-    canAccessTab(dashboard.viewer.role, tab.key)
-  );
+  const allowedWorkspaces =
+    dashboard.viewer.role === "admin" || dashboard.viewer.businessUnit === "grupo"
+      ? workspaceOptions
+      : workspaceOptions.filter((workspace) => workspace.key === dashboard.viewer.businessUnit);
+  const resolvedWorkspace = allowedWorkspaces.some((workspace) => workspace.key === activeWorkspace)
+    ? activeWorkspace
+    : allowedWorkspaces[0]?.key ?? "constructora";
+  const isConstructoraWorkspace = resolvedWorkspace === "constructora";
+  const currentWorkspaceOption =
+    workspaceOptions.find((workspace) => workspace.key === resolvedWorkspace) ??
+    workspaceOptions[0];
+  const visibleTabs = workspaceTabMap[resolvedWorkspace]
+    .filter((tab) => canAccessTab(dashboard.viewer.role, tab, resolvedWorkspace))
+    .map((tab) => {
+      const metadata = tabDefinitions.find((item) => item.key === tab);
+
+      return {
+        key: tab,
+        label: getWorkspaceTabLabel(resolvedWorkspace, tab),
+        icon: metadata?.icon ?? FolderKanban,
+      };
+    });
+  const activeTabLabel =
+    visibleTabs.find((tab) => tab.key === activeTab)?.label ?? "Panel";
   const canManageProjectMeta = dashboard.viewer.role === "admin";
   const canManageAssignments = dashboard.viewer.role === "admin";
   const canManageUpdates =
@@ -1688,6 +2239,12 @@ export default function CmsApp() {
     dashboard.viewer.role === "site_manager";
   const assignableStaff = dashboard.staff.filter(
     (profile) => profile.role === "architect" || profile.role === "site_manager"
+  );
+  const visibleLeads = dashboard.leads.filter(
+    (lead) =>
+      resolvedWorkspace === "constructora"
+        ? lead.businessUnit === "constructora" || lead.businessUnit === "grupo"
+        : lead.businessUnit === resolvedWorkspace
   );
   const hasBlockingOverlay =
     mobileNavOpen ||
@@ -1732,6 +2289,11 @@ export default function CmsApp() {
 
     setBuildingForm({ ...base, assignedStaffIds });
     setActiveModal("building");
+  };
+
+  const openPropertyEditor = (property?: RealEstateProperty) => {
+    setPropertyForm(toPropertyEditorState(property ?? buildEmptyProperty()));
+    setActiveModal("property");
   };
 
   const openUnitEditor = (index?: number) => {
@@ -1810,9 +2372,23 @@ export default function CmsApp() {
       const nextDashboard = await loadCmsDashboard();
       setDashboard(nextDashboard);
 
-      if (!canAccessTab(nextDashboard.viewer.role, activeTab)) {
+      const nextAllowedWorkspaces =
+        nextDashboard.viewer.role === "admin" || nextDashboard.viewer.businessUnit === "grupo"
+          ? workspaceOptions
+          : workspaceOptions.filter(
+              (workspace) => workspace.key === nextDashboard.viewer.businessUnit
+            );
+      const nextWorkspace = nextAllowedWorkspaces.some(
+        (workspace) => workspace.key === activeWorkspace
+      )
+        ? activeWorkspace
+        : nextAllowedWorkspaces[0]?.key ?? "constructora";
+
+      if (!canAccessTab(nextDashboard.viewer.role, activeTab, nextWorkspace)) {
         const fallbackTab =
-          tabDefinitions.find((tab) => canAccessTab(nextDashboard.viewer.role, tab.key))
+          tabDefinitions.find((tab) =>
+            canAccessTab(nextDashboard.viewer.role, tab.key, nextWorkspace)
+          )
             ?.key ?? "works";
         setActiveTab(fallbackTab);
       }
@@ -1861,12 +2437,22 @@ export default function CmsApp() {
   }, [dashboard.services]);
 
   useEffect(() => {
-    setServicesForm(dashboard.services);
-  }, [dashboard.services]);
+    if (dashboard.viewer.role !== "admin" && dashboard.viewer.businessUnit !== "grupo") {
+      setActiveWorkspace(dashboard.viewer.businessUnit);
+    }
+  }, [dashboard.viewer.businessUnit, dashboard.viewer.role]);
+
+  useEffect(() => {
+    if (resolvedWorkspace === "constructora") {
+      return;
+    }
+
+    setBusinessPageForm(cloneBusinessPage(dashboard.businessPages[resolvedWorkspace]));
+  }, [dashboard.businessPages, resolvedWorkspace]);
 
   useEffect(() => {
     setMobileNavOpen(false);
-  }, [activeTab]);
+  }, [activeTab, resolvedWorkspace]);
 
   useEffect(() => {
     if (!hasBlockingOverlay) return;
@@ -1902,87 +2488,25 @@ export default function CmsApp() {
       .toLowerCase()
       .includes(buildingSearch.toLowerCase())
   );
+  const filteredProperties = dashboard.properties.filter((property) =>
+    `${property.title} ${property.location} ${property.category} ${property.price}`
+      .toLowerCase()
+      .includes(propertySearch.toLowerCase())
+  );
   const filteredTeam = dashboard.team.filter((member) =>
     `${member.name} ${member.role} ${member.bio}`
       .toLowerCase()
       .includes(teamSearch.toLowerCase())
   );
   const filteredStaff = dashboard.staff.filter((profile) =>
-    `${profile.fullName} ${profile.email ?? ""} ${profile.role}`
+    `${profile.fullName} ${profile.email ?? ""} ${profile.role} ${profile.businessUnit}`
       .toLowerCase()
       .includes(staffSearch.toLowerCase())
   );
-  const cmsStats = [
-    {
-      label: "Obras activas",
-      value: String(dashboard.works.filter((work) => work.status === "en_progreso").length),
-      hint: "Proyectos en ejecucion o seguimiento.",
-    },
-    {
-      label: "Edificios visibles",
-      value: String(dashboard.buildings.length),
-      hint: "Desarrollos listados en la plataforma.",
-    },
-    {
-      label: "Unidades disponibles",
-      value: String(
-        dashboard.buildings.reduce(
-          (total, building) => total + building.units.filter((unit) => unit.isAvailable).length,
-          0
-        )
-      ),
-      hint: "Departamentos o unidades listas para consulta.",
-    },
-    {
-      label: "Leads nuevos",
-      value: String(dashboard.leads.filter((lead) => lead.status === "nuevo").length),
-      hint: "Solicitudes pendientes de primer contacto.",
-    },
-    {
-      label: "Servicios",
-      value: String(servicesForm.length),
-      hint: "Bloques comerciales visibles en la home.",
-    },
-    {
-      label: "Pasos del proceso",
-      value: String(settingsForm.processSteps.length),
-      hint: "Etapas editables del proceso comercial.",
-    },
-    {
-      label: "Equipo visible",
-      value: String(dashboard.team.length),
-      hint: "Perfiles publicados en Nosotros.",
-    },
-    {
-      label: "Sucursales",
-      value: String(settingsForm.contact.branches.length),
-      hint: "Puntos de contacto activos en la web.",
-    },
-  ];
-  const workStatusSummary = projectStatuses.map((status) => ({
-    label: statusLabel(status),
-    value: dashboard.works.filter((work) => work.status === status).length,
-  }));
-  const buildingStatusSummary = projectStatuses.map((status) => ({
-    label: statusLabel(status),
-    value: dashboard.buildings.filter((building) => building.status === status).length,
-  }));
-  const staffRoleSummary: { label: string; value: number }[] = [
-    { label: "Admins", value: dashboard.staff.filter((item) => item.role === "admin").length },
-    {
-      label: "Arquitectos",
-      value: dashboard.staff.filter((item) => item.role === "architect").length,
-    },
-    {
-      label: "Encargados",
-      value: dashboard.staff.filter((item) => item.role === "site_manager").length,
-    },
-    { label: "Ventas", value: dashboard.staff.filter((item) => item.role === "sales").length },
-  ];
 
   const uploadMany = async (
     files: FileList | null,
-    folder: "works" | "buildings" | "team" | "plans",
+    folder: "works" | "buildings" | "team" | "plans" | "services" | "properties",
     slugHint: string
   ) => {
     if (!files?.length) return [];
@@ -2149,6 +2673,46 @@ export default function CmsApp() {
     }
   };
 
+  const saveCurrentProperty = async () => {
+    setScreenState({ loading: true, message: "", error: false });
+
+    try {
+      await saveProperty({
+        id: propertyForm.id,
+        slug: propertyForm.slug,
+        title: propertyForm.title,
+        category: propertyForm.category,
+        operation: propertyForm.operation,
+        status: propertyForm.status,
+        location: propertyForm.location,
+        price: propertyForm.price,
+        area: propertyForm.area,
+        bedrooms: propertyForm.bedrooms,
+        bathrooms: propertyForm.bathrooms,
+        summary: propertyForm.summary,
+        description: propertyForm.description,
+        heroImage: propertyForm.heroImage,
+        gallery: propertyForm.gallery,
+        features: propertyForm.features,
+        mapEmbedUrl: propertyForm.mapEmbedUrl || undefined,
+      });
+      await refreshDashboard();
+      setActiveModal(null);
+      setScreenState({
+        loading: false,
+        message: "Propiedad guardada correctamente.",
+        error: false,
+      });
+    } catch (error) {
+      console.error(error);
+      setScreenState({
+        loading: false,
+        message: getErrorMessage(error, "No se pudo guardar la propiedad."),
+        error: true,
+      });
+    }
+  };
+
   const saveCurrentTeam = async () => {
     setScreenState({ loading: true, message: "", error: false });
     try {
@@ -2173,11 +2737,11 @@ export default function CmsApp() {
   const saveCurrentSettings = async () => {
     setScreenState({ loading: true, message: "", error: false });
     try {
-      await Promise.all([saveSiteSettings(settingsForm), saveServices(servicesForm)]);
+      await saveSiteSettings(settingsForm);
       await refreshDashboard();
       setScreenState({
         loading: false,
-        message: "Home y ajustes comerciales actualizados.",
+        message: "Ajustes generales guardados.",
         error: false,
       });
     } catch (error) {
@@ -2185,6 +2749,154 @@ export default function CmsApp() {
       setScreenState({
         loading: false,
         message: getErrorMessage(error, "No se pudieron guardar los ajustes del sitio."),
+        error: true,
+      });
+    }
+  };
+
+  const saveCurrentBusinessPage = async () => {
+    setScreenState({ loading: true, message: "", error: false });
+    try {
+      await saveBusinessAreaPage(businessPageForm);
+      await refreshDashboard();
+      setScreenState({
+        loading: false,
+        message: `${businessPageForm.label} actualizado correctamente.`,
+        error: false,
+      });
+    } catch (error) {
+      console.error(error);
+      setScreenState({
+        loading: false,
+        message: getErrorMessage(error, "No se pudo guardar la landing de esta unidad."),
+        error: true,
+      });
+    }
+  };
+
+  const addBusinessService = () => {
+    setBusinessPageForm((current) => ({
+      ...current,
+      services: [
+        ...current.services,
+        { id: `service-${Date.now()}`, title: "", text: "" },
+      ],
+    }));
+  };
+
+  const addBusinessHighlight = () => {
+    setBusinessPageForm((current) => ({
+      ...current,
+      highlights: [
+        ...current.highlights,
+        { id: `highlight-${Date.now()}`, title: "", text: "" },
+      ],
+    }));
+  };
+
+  const addBusinessProcess = () => {
+    setBusinessPageForm((current) => ({
+      ...current,
+      process: [
+        ...current.process,
+        { id: `process-${Date.now()}`, order: String(current.process.length + 1).padStart(2, "0"), title: "", text: "" },
+      ],
+    }));
+  };
+
+  const addBusinessFaq = () => {
+    setBusinessPageForm((current) => ({
+      ...current,
+      faqs: [
+        ...current.faqs,
+        { id: `faq-${Date.now()}`, question: "", answer: "" },
+      ],
+    }));
+  };
+
+  const saveCurrentService = async () => {
+    const normalizedService = normalizeServiceDraft(serviceForm);
+    const validationMessage = validateServiceDraft(normalizedService);
+
+    if (validationMessage) {
+      setScreenState({
+        loading: false,
+        message: validationMessage,
+        error: true,
+      });
+      return;
+    }
+
+    const duplicateSlug = servicesForm.find(
+      (service) =>
+        service.id !== normalizedService.id &&
+        service.slug.trim().toLowerCase() === normalizedService.slug.trim().toLowerCase()
+    );
+
+    if (duplicateSlug) {
+      setScreenState({
+        loading: false,
+        message: `El slug "${normalizedService.slug}" ya pertenece al servicio "${duplicateSlug.title}".`,
+        error: true,
+      });
+      return;
+    }
+
+    const nextServices =
+      editingServiceIndex === null
+        ? [...servicesForm, normalizedService]
+        : servicesForm.map((item, index) =>
+            index === editingServiceIndex ? normalizedService : item
+          );
+
+    setScreenState({ loading: true, message: "", error: false });
+
+    try {
+      await saveService(
+        normalizedService,
+        editingServiceIndex === null ? nextServices.length : editingServiceIndex + 1
+      );
+      setServicesForm(nextServices);
+      setServiceForm(normalizedService);
+      setServiceModalOpen(false);
+      await refreshDashboard();
+      setScreenState({
+        loading: false,
+        message:
+          editingServiceIndex === null
+            ? "Servicio creado y guardado en la base."
+            : "Servicio actualizado y guardado en la base.",
+        error: false,
+      });
+    } catch (error) {
+      console.error(error);
+      setScreenState({
+        loading: false,
+        message: getErrorMessage(error, "No se pudo guardar el servicio."),
+        error: true,
+      });
+    }
+  };
+
+  const removeCurrentService = async (service: ServiceItem) => {
+    setScreenState({ loading: true, message: "", error: false });
+
+    try {
+      await deleteService(service.id);
+      const nextServices = servicesForm.filter((item) => item.id !== service.id);
+      setServicesForm(nextServices);
+      await saveServices(nextServices);
+      await refreshDashboard();
+      setScreenState({
+        loading: false,
+        message: "Servicio eliminado.",
+        error: false,
+      });
+    } catch (error) {
+      console.error(error);
+      setScreenState({
+        loading: false,
+        message: getErrorMessage(error, "No se pudo eliminar el servicio."),
         error: true,
       });
     }
@@ -2198,6 +2910,7 @@ export default function CmsApp() {
         fullName: staffForm.fullName,
         email: staffForm.email || undefined,
         role: staffForm.role,
+        businessUnit: staffForm.businessUnit,
       });
 
       for (const work of dashboard.works) {
@@ -2268,6 +2981,38 @@ export default function CmsApp() {
       });
     }
   };
+
+  const cmsHeaderTitle =
+    resolvedWorkspace === "constructora"
+      ? activeTab === "works"
+        ? "Obras en gestion"
+        : activeTab === "buildings"
+          ? "Edificios y unidades"
+          : activeTab === "services"
+            ? "Servicios de constructora"
+            : activeTab === "team"
+              ? "Equipo y accesos"
+              : activeTab === "leads"
+                ? "Leads de constructora"
+                : "Ajustes del sitio"
+      : `${currentWorkspaceOption.label} - ${activeTabLabel}`;
+
+  const cmsHeaderDescription =
+    resolvedWorkspace === "constructora"
+      ? activeTab === "works"
+        ? "Administra obras con galeria, planos, avances y responsables desde un solo flujo."
+        : activeTab === "buildings"
+          ? "Gestiona edificios, unidades disponibles y material comercial del proyecto."
+          : activeTab === "services"
+            ? "Edita los servicios visibles de la constructora sin tocar codigo."
+            : activeTab === "team"
+              ? "Organiza perfiles publicos y usuarios con acceso interno al CMS."
+              : activeTab === "leads"
+                ? "Revisa y responde las solicitudes que llegan a la constructora."
+                : "Administra marca, contacto y contenidos globales del sitio principal."
+      : resolvedWorkspace === "juridico"
+        ? "Elige un modulo del estudio juridico y edita solo lo necesario: portada, servicios, mensajes, FAQs y leads."
+        : "Bienes raices ahora tiene su propio flujo para portada, servicios, propiedades, proceso comercial y leads.";
 
   if (!isSupabaseConfigured) {
     return (
@@ -2524,30 +3269,11 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
 
       <div className="relative z-10 mx-auto max-w-[1480px]">
         <CmsHeader
-          title={
-            activeTab === "works"
-              ? "Obras en gestion"
-              : activeTab === "buildings"
-                ? "Edificios y unidades"
-                : activeTab === "team"
-                  ? "Nosotros y responsables"
-                  : activeTab === "leads"
-                    ? "Leads y seguimiento"
-                    : "Ajustes del sitio"
-          }
-          description={
-            activeTab === "works"
-              ? "Las obras ahora se administran como tarjetas amplias y cada ficha abre un editor modal con galeria, planos y avances estructurados."
-              : activeTab === "buildings"
-                ? "Los edificios usan el mismo lenguaje visual y dejan listos planos, galeria, amenidades y unidades."
-                : activeTab === "team"
-                  ? "Gestiona duenos, gerentes y responsables desde una experiencia mas visual y menos tecnica."
-                  : activeTab === "leads"
-                    ? "Las solicitudes se revisan en un tablero claro con estado, notas y acceso directo a WhatsApp."
-                    : "Administra marca, textos publicos, contacto y sucursales visibles en la landing."
-          }
+          title={cmsHeaderTitle}
+          description={cmsHeaderDescription}
           viewerName={dashboard.viewer.fullName}
           viewerRole={dashboard.viewer.role}
+          viewerBusinessUnit={dashboard.viewer.businessUnit}
           onOpenNavigation={() => setMobileNavOpen(true)}
           onLogout={() => void signOutCms()}
         />
@@ -2555,118 +3281,343 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
         <CmsMobileNavigation
           open={mobileNavOpen}
           onClose={() => setMobileNavOpen(false)}
+          workspaces={allowedWorkspaces}
+          activeWorkspace={resolvedWorkspace}
+          onSelectWorkspace={(workspace) => {
+            setActiveWorkspace(workspace);
+            setActiveTab(defaultTabForWorkspace(workspace));
+          }}
           visibleTabs={visibleTabs}
           activeTab={activeTab}
           onSelectTab={setActiveTab}
           message={screenState.message}
           error={screenState.error}
         />
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-          {cmsStats.map((stat) => (
-            <DashboardStatCard
-              key={stat.label}
-              label={stat.label}
-              value={stat.value}
-              hint={stat.hint}
-            />
-          ))}
-        </div>
-
-        <div className="mt-4 grid gap-4 xl:grid-cols-3">
-          <div className="rounded-[2rem] border border-white/10 bg-black/55 p-5 shadow-2xl shadow-black/20 backdrop-blur-xl">
-            <p className="text-sm font-medium text-white">Estado de obras</p>
-            <div className="mt-4 grid gap-3">
-              {workStatusSummary.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between rounded-[1.3rem] border border-white/10 bg-white/[0.05] px-4 py-3"
-                >
-                  <span className="text-sm text-stone-300">{item.label}</span>
-                  <span className="rounded-full bg-[#fff1c3] px-3 py-1 text-xs font-medium text-[#8c6611]">
-                    {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-white/10 bg-black/55 p-5 shadow-2xl shadow-black/20 backdrop-blur-xl">
-            <p className="text-sm font-medium text-white">Estado de edificios</p>
-            <div className="mt-4 grid gap-3">
-              {buildingStatusSummary.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between rounded-[1.3rem] border border-white/10 bg-white/[0.05] px-4 py-3"
-                >
-                  <span className="text-sm text-stone-300">{item.label}</span>
-                  <span className="rounded-full bg-[#fff1c3] px-3 py-1 text-xs font-medium text-[#8c6611]">
-                    {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border border-white/10 bg-black/55 p-5 shadow-2xl shadow-black/20 backdrop-blur-xl">
-            <p className="text-sm font-medium text-white">Accesos por rol</p>
-            <div className="mt-4 grid gap-3">
-              {staffRoleSummary.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between rounded-[1.3rem] border border-white/10 bg-white/[0.05] px-4 py-3"
-                >
-                  <span className="text-sm text-stone-300">{item.label}</span>
-                  <span className="rounded-full bg-[#fff1c3] px-3 py-1 text-xs font-medium text-[#8c6611]">
-                    {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-4 xl:grid-cols-[240px_1fr]">
-          <div className="hidden rounded-[2rem] border border-white/10 bg-black/55 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl xl:block">
-            <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.05] p-4">
-              <img src="/logo/logo.png" alt="Mendoza" className="h-auto w-[94px] object-contain" />
-              <p className="mt-4 text-sm leading-6 text-stone-400">
-                Backoffice visual para proyectos, planos y ventas.
-              </p>
-            </div>
-
-            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-1">
-              {visibleTabs.map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setActiveTab(key)}
-                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-left transition ${
-                    activeTab === key
-                      ? "bg-[#FFDC63] text-black"
-                      : "bg-white/[0.05] text-white hover:bg-white/[0.09]"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {screenState.message && (
-              <div
-                className={`mt-4 rounded-[1.4rem] px-4 py-3 text-sm ${
-                  screenState.error
-                    ? "bg-rose-500/10 text-rose-200"
-                    : "bg-emerald-500/10 text-emerald-200"
-                }`}
-              >
-                {screenState.message}
-              </div>
-            )}
-          </div>
+        <div className="mt-4 grid gap-4 xl:grid-cols-[300px_1fr]">
+          <CmsSidebar
+            allowedWorkspaces={allowedWorkspaces}
+            activeWorkspace={resolvedWorkspace}
+            onSelectWorkspace={(workspace) => {
+              setActiveWorkspace(workspace);
+              setActiveTab(defaultTabForWorkspace(workspace));
+            }}
+            visibleTabs={visibleTabs}
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            viewerName={dashboard.viewer.fullName}
+            viewerRole={dashboard.viewer.role}
+            viewerBusinessUnit={dashboard.viewer.businessUnit}
+            message={screenState.message}
+            error={screenState.error}
+          />
 
           <div className="min-w-0 space-y-4">
+            <div className="rounded-[1.8rem] border border-white/10 bg-black/55 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-[#FFDC63]">
+                    {currentWorkspaceOption.label}
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-white">{activeTabLabel}</h2>
+                  <p className="mt-2 text-sm leading-6 text-stone-400">
+                    {isConstructoraWorkspace
+                      ? "Panel directo para editar lo operativo de la constructora."
+                      : `Modulo editable de ${currentWorkspaceOption.label.toLowerCase()} con contenidos propios y leads separados.`}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {visibleTabs.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`rounded-full border px-4 py-2 text-sm transition ${
+                        activeTab === tab.key
+                          ? "border-[#FFDC63]/40 bg-[#FFDC63] text-black"
+                          : "border-white/10 bg-white/[0.05] text-white hover:bg-white/[0.08]"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {!isConstructoraWorkspace && activeTab === "landing-content" && (
+              <CardShell className="p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stone-900">Portada y textos base</h3>
+                    <p className="mt-2 text-sm leading-6 text-stone-500">
+                      Aqui editas la vista principal, botones, cobertura y textos de contacto de esta landing.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={saveCurrentBusinessPage}
+                    className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black"
+                  >
+                    <Save className="h-4 w-4" />
+                    Guardar cambios
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                  <InputField label="Nombre visible" value={businessPageForm.label} onChange={(value) => setBusinessPageForm((current) => ({ ...current, label: value }))} />
+                  <InputField label="Eyebrow" value={businessPageForm.eyebrow} onChange={(value) => setBusinessPageForm((current) => ({ ...current, eyebrow: value }))} />
+                  <InputField label="Titulo principal" value={businessPageForm.title} onChange={(value) => setBusinessPageForm((current) => ({ ...current, title: value }))} />
+                  <InputField label="Acento" value={businessPageForm.accent} onChange={(value) => setBusinessPageForm((current) => ({ ...current, accent: value }))} />
+                  <InputField label="Imagen hero" value={businessPageForm.image} onChange={(value) => setBusinessPageForm((current) => ({ ...current, image: value }))} />
+                  <InputField label="Cobertura" value={businessPageForm.coverage} onChange={(value) => setBusinessPageForm((current) => ({ ...current, coverage: value }))} />
+                  <InputField label="Boton principal" value={businessPageForm.primaryLabel} onChange={(value) => setBusinessPageForm((current) => ({ ...current, primaryLabel: value }))} />
+                  <InputField label="Boton secundario" value={businessPageForm.secondaryLabel} onChange={(value) => setBusinessPageForm((current) => ({ ...current, secondaryLabel: value }))} />
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  <TextareaField label="Descripcion hero" value={businessPageForm.description} onChange={(value) => setBusinessPageForm((current) => ({ ...current, description: value }))} rows={4} />
+                  <TextareaField label="Tagline" value={businessPageForm.tagline} onChange={(value) => setBusinessPageForm((current) => ({ ...current, tagline: value }))} rows={3} />
+                  <TextareaField label="Descripcion de cobertura" value={businessPageForm.coverageDescription} onChange={(value) => setBusinessPageForm((current) => ({ ...current, coverageDescription: value }))} rows={3} />
+                  <TextareaField label="Texto de contacto" value={businessPageForm.contactPrompt} onChange={(value) => setBusinessPageForm((current) => ({ ...current, contactPrompt: value }))} rows={3} />
+                  <TextareaField label="Texto del footer" value={businessPageForm.footerBlurb} onChange={(value) => setBusinessPageForm((current) => ({ ...current, footerBlurb: value }))} rows={3} />
+                </div>
+              </CardShell>
+            )}
+
+            {!isConstructoraWorkspace && activeTab === "landing-services" && (
+              <CardShell className="p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stone-900">Servicios dinamicos</h3>
+                    <p className="mt-2 text-sm leading-6 text-stone-500">
+                      Agrega, edita o elimina los servicios visibles de esta unidad.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={addBusinessService}
+                      className="inline-flex h-11 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-medium text-stone-800"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Agregar servicio
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveCurrentBusinessPage}
+                      className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                    >
+                      <Save className="h-4 w-4" />
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  {businessPageForm.services.map((item, index) => (
+                    <div key={item.id} className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-stone-900">Servicio {index + 1}</p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBusinessPageForm((current) => ({
+                              ...current,
+                              services: current.services.filter((_, serviceIndex) => serviceIndex !== index),
+                            }))
+                          }
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="mt-3 grid gap-3">
+                        <InputField label="Titulo" value={item.title} onChange={(value) => setBusinessPageForm((current) => ({ ...current, services: current.services.map((service, serviceIndex) => serviceIndex === index ? { ...service, title: value } : service) }))} />
+                        <TextareaField label="Texto" value={item.text} onChange={(value) => setBusinessPageForm((current) => ({ ...current, services: current.services.map((service, serviceIndex) => serviceIndex === index ? { ...service, text: value } : service) }))} rows={3} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardShell>
+            )}
+
+            {!isConstructoraWorkspace && activeTab === "landing-highlights" && (
+              <CardShell className="p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stone-900">Mensajes editables</h3>
+                    <p className="mt-2 text-sm leading-6 text-stone-500">
+                      Bloques cortos para explicar el enfoque de esta landing.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={addBusinessHighlight}
+                      className="inline-flex h-11 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-medium text-stone-800"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Agregar bloque
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveCurrentBusinessPage}
+                      className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                    >
+                      <Save className="h-4 w-4" />
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  {businessPageForm.highlights.map((item, index) => (
+                    <div key={item.id} className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-stone-900">Bloque {index + 1}</p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBusinessPageForm((current) => ({
+                              ...current,
+                              highlights: current.highlights.filter((_, highlightIndex) => highlightIndex !== index),
+                            }))
+                          }
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="mt-3 grid gap-3">
+                        <InputField label="Titulo" value={item.title} onChange={(value) => setBusinessPageForm((current) => ({ ...current, highlights: current.highlights.map((highlight, highlightIndex) => highlightIndex === index ? { ...highlight, title: value } : highlight) }))} />
+                        <TextareaField label="Texto" value={item.text} onChange={(value) => setBusinessPageForm((current) => ({ ...current, highlights: current.highlights.map((highlight, highlightIndex) => highlightIndex === index ? { ...highlight, text: value } : highlight) }))} rows={3} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardShell>
+            )}
+
+            {!isConstructoraWorkspace && activeTab === "landing-process" && (
+              <CardShell className="p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stone-900">
+                      {resolvedWorkspace === "bienes-raices" ? "Proceso comercial" : "Proceso"}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-stone-500">
+                      Secuencia dinamica de pasos para esta unidad.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={addBusinessProcess}
+                      className="inline-flex h-11 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-medium text-stone-800"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Agregar paso
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveCurrentBusinessPage}
+                      className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                    >
+                      <Save className="h-4 w-4" />
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  {businessPageForm.process.map((item, index) => (
+                    <div key={item.id} className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-stone-900">Paso {index + 1}</p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBusinessPageForm((current) => ({
+                              ...current,
+                              process: current.process.filter((_, processIndex) => processIndex !== index),
+                            }))
+                          }
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-[110px_1fr]">
+                        <InputField label="Orden" value={item.order} onChange={(value) => setBusinessPageForm((current) => ({ ...current, process: current.process.map((step, stepIndex) => stepIndex === index ? { ...step, order: value } : step) }))} />
+                        <InputField label="Titulo" value={item.title} onChange={(value) => setBusinessPageForm((current) => ({ ...current, process: current.process.map((step, stepIndex) => stepIndex === index ? { ...step, title: value } : step) }))} />
+                      </div>
+                      <div className="mt-3">
+                        <TextareaField label="Texto" value={item.text} onChange={(value) => setBusinessPageForm((current) => ({ ...current, process: current.process.map((step, stepIndex) => stepIndex === index ? { ...step, text: value } : step) }))} rows={3} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardShell>
+            )}
+
+            {!isConstructoraWorkspace && activeTab === "landing-faqs" && (
+              <CardShell className="p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stone-900">Preguntas frecuentes</h3>
+                    <p className="mt-2 text-sm leading-6 text-stone-500">
+                      Edita respuestas listas para esta landing.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={addBusinessFaq}
+                      className="inline-flex h-11 items-center gap-2 rounded-full border border-stone-200 bg-white px-4 text-sm font-medium text-stone-800"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Agregar FAQ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveCurrentBusinessPage}
+                      className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                    >
+                      <Save className="h-4 w-4" />
+                      Guardar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  {businessPageForm.faqs.map((item, index) => (
+                    <div key={item.id} className="rounded-[1.4rem] border border-stone-200 bg-white p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-stone-900">FAQ {index + 1}</p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setBusinessPageForm((current) => ({
+                              ...current,
+                              faqs: current.faqs.filter((_, faqIndex) => faqIndex !== index),
+                            }))
+                          }
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="mt-3 grid gap-3">
+                        <InputField label="Pregunta" value={item.question} onChange={(value) => setBusinessPageForm((current) => ({ ...current, faqs: current.faqs.map((faq, faqIndex) => faqIndex === index ? { ...faq, question: value } : faq) }))} />
+                        <TextareaField label="Respuesta" value={item.answer} onChange={(value) => setBusinessPageForm((current) => ({ ...current, faqs: current.faqs.map((faq, faqIndex) => faqIndex === index ? { ...faq, answer: value } : faq) }))} rows={3} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardShell>
+            )}
+
             {activeTab === "works" && (
               <>
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -2742,6 +3693,43 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                     />
                   ))}
                 </div>
+              </>
+            )}
+
+            {activeTab === "properties" && (
+              <>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <h2 className="text-xl font-semibold text-white">Propiedades registradas</h2>
+                  <SearchField
+                    value={propertySearch}
+                    onChange={setPropertySearch}
+                    placeholder="Buscar por titulo, ubicacion o precio"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openPropertyEditor()}
+                    className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Nueva propiedad
+                  </button>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                  {filteredProperties.map((property) => (
+                    <RealEstatePropertyCard
+                      key={property.id}
+                      property={property}
+                      onEdit={() => openPropertyEditor(property)}
+                    />
+                  ))}
+                </div>
+
+                {filteredProperties.length === 0 ? (
+                  <CardShell className="px-4 py-10 text-center text-sm text-stone-500">
+                    Todavia no hay propiedades cargadas en bienes raices.
+                  </CardShell>
+                ) : null}
               </>
             )}
 
@@ -2821,9 +3809,97 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
 
             {activeTab === "leads" && (
               <div className="grid gap-4">
-                {dashboard.leads.map((lead) => (
+                {visibleLeads.map((lead) => (
                   <LeadCard key={lead.id} lead={lead} onSave={handleLeadUpdate} />
                 ))}
+                {visibleLeads.length === 0 ? (
+                  <CardShell className="px-4 py-10 text-center text-sm text-stone-500">
+                    No hay leads en esta unidad por ahora.
+                  </CardShell>
+                ) : null}
+              </div>
+            )}
+
+            {activeTab === "services" && canManageProjectMeta && (
+              <div className="grid gap-4">
+                <CardShell className="p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-stone-900">Servicios</h3>
+                      <p className="mt-2 text-sm leading-6 text-stone-500">
+                        Crea, edita y elimina los servicios comerciales visibles en la web.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openServiceEditor()}
+                      className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Nuevo servicio
+                    </button>
+                  </div>
+
+                  <div className="mt-4 rounded-[1.3rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                    Cada servicio se guarda por separado. Si el slug ya existe, te lo avisaremos antes de enviarlo.
+                  </div>
+
+                  <div className="mt-4 grid gap-3">
+                    {servicesForm.map((service, index) => (
+                      <div
+                        key={service.id}
+                        className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-stone-900">
+                              {service.title}
+                            </p>
+                            <p className="mt-1 text-xs uppercase tracking-[0.22em] text-stone-400">
+                              {service.slug || `servicio-${index + 1}`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openServiceEditor(index)}
+                              className="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-700"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void removeCurrentService(service)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-stone-600">{service.text}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {service.isPriceVisible && service.priceLabel ? (
+                            <span className="rounded-full bg-[#fff4d4] px-3 py-1 text-xs font-medium text-[#9a7317]">
+                              {service.priceLabel}
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
+                              Sin precio visible
+                            </span>
+                          )}
+                          <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
+                            {service.requiresLocation
+                              ? "Pide ubicacion en mapa"
+                              : "Ubicacion opcional"}
+                          </span>
+                          <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
+                            {service.beforeAfterItems.length} comparadores
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardShell>
               </div>
             )}
 
@@ -2997,66 +4073,6 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                 </CardShell>
 
                 <div className="grid gap-4 xl:grid-cols-2">
-                  <CardShell className="p-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-stone-900">Servicios</h3>
-                        <p className="mt-2 text-sm leading-6 text-stone-500">
-                          Administra los bloques comerciales que aparecen en la home.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => openServiceEditor()}
-                        className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
-                      >
-                        <Plus className="h-4 w-4" />
-                        Nuevo servicio
-                      </button>
-                    </div>
-
-                    <div className="mt-4 grid gap-3">
-                      {servicesForm.map((service, index) => (
-                        <div
-                          key={service.id}
-                          className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-stone-900">
-                                {service.title}
-                              </p>
-                              <p className="mt-1 text-xs uppercase tracking-[0.22em] text-stone-400">
-                                Servicio {index + 1}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openServiceEditor(index)}
-                                className="inline-flex h-8 items-center rounded-full border border-stone-200 bg-white px-3 text-xs font-medium text-stone-700"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setServicesForm((current) =>
-                                    current.filter((_, currentIndex) => currentIndex !== index)
-                                  )
-                                }
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                          <p className="mt-3 text-sm leading-6 text-stone-600">{service.text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardShell>
-
                   <CardShell className="p-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -3253,6 +4269,10 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                     <Save className="h-4 w-4" />
                     Guardar ajustes
                   </button>
+                </div>
+
+                <div className="rounded-[1.3rem] border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-sm leading-6 text-stone-600">
+                  Este boton ahora guarda solo <strong>ajustes generales</strong>. Los <strong>servicios</strong> se crean, editan y eliminan desde su propio bloque.
                 </div>
               </div>
             )}
@@ -3902,6 +4922,230 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
       </EditorModal>
 
       <EditorModal
+        open={activeModal === "property"}
+        title={propertyForm.id ? "Editar propiedad" : "Nueva propiedad"}
+        description="Crea una ficha inmobiliaria con precio, mapa, galeria, estado y caracteristicas."
+        onClose={() => setActiveModal(null)}
+      >
+        <div className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <InputField label="Titulo" value={propertyForm.title} onChange={(value) => setPropertyForm((current) => ({ ...current, title: value }))} />
+            <InputField label="Slug" value={propertyForm.slug} onChange={(value) => setPropertyForm((current) => ({ ...current, slug: value }))} />
+            <InputField label="Categoria" value={propertyForm.category} onChange={(value) => setPropertyForm((current) => ({ ...current, category: value }))} />
+            <InputField label="Ubicacion" value={propertyForm.location} onChange={(value) => setPropertyForm((current) => ({ ...current, location: value }))} />
+            <InputField label="Precio" value={propertyForm.price} onChange={(value) => setPropertyForm((current) => ({ ...current, price: value }))} />
+            <InputField label="Area" value={propertyForm.area} onChange={(value) => setPropertyForm((current) => ({ ...current, area: value }))} />
+            <SelectField
+              label="Operacion"
+              value={propertyForm.operation}
+              onChange={(value) =>
+                setPropertyForm((current) => ({
+                  ...current,
+                  operation: value as PropertyOperation,
+                }))
+              }
+              options={propertyOperations.map((item) => ({
+                label: propertyOperationLabel(item),
+                value: item,
+              }))}
+            />
+            <SelectField
+              label="Estado"
+              value={propertyForm.status}
+              onChange={(value) =>
+                setPropertyForm((current) => ({
+                  ...current,
+                  status: value as PropertyStatus,
+                }))
+              }
+              options={propertyStatuses.map((item) => ({
+                label: propertyStatusLabel(item),
+                value: item,
+              }))}
+            />
+            <InputField
+              label="Habitaciones"
+              type="number"
+              value={String(propertyForm.bedrooms)}
+              onChange={(value) =>
+                setPropertyForm((current) => ({
+                  ...current,
+                  bedrooms: Number(value) || 0,
+                }))
+              }
+            />
+            <InputField
+              label="Banos"
+              type="number"
+              value={String(propertyForm.bathrooms)}
+              onChange={(value) =>
+                setPropertyForm((current) => ({
+                  ...current,
+                  bathrooms: Number(value) || 0,
+                }))
+              }
+            />
+            <InputField label="Mapa embebido" value={propertyForm.mapEmbedUrl} onChange={(value) => setPropertyForm((current) => ({ ...current, mapEmbedUrl: value }))} />
+          </div>
+
+          <TextareaField label="Resumen" value={propertyForm.summary} onChange={(value) => setPropertyForm((current) => ({ ...current, summary: value }))} rows={3} />
+          <TextareaField label="Descripcion" value={propertyForm.description} onChange={(value) => setPropertyForm((current) => ({ ...current, description: value }))} rows={5} />
+
+          <CardShell className="p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-stone-900">Portada principal</h3>
+                <p className="text-sm leading-6 text-stone-500">
+                  Imagen principal de la propiedad.
+                </p>
+              </div>
+              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black">
+                <Upload className="h-4 w-4" />
+                Subir portada
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (event) => {
+                    const [url] = await uploadMany(
+                      event.target.files,
+                      "properties",
+                      propertyForm.slug || propertyForm.title || "propiedad"
+                    );
+                    if (url) {
+                      setPropertyForm((current) => ({ ...current, heroImage: url }));
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            {propertyForm.heroImage ? (
+              <img
+                src={propertyForm.heroImage}
+                alt={propertyForm.title || "Portada"}
+                className="mt-4 h-56 w-full rounded-[1.4rem] object-cover"
+              />
+            ) : (
+              <div className="mt-4 rounded-[1.4rem] border border-dashed border-stone-300 bg-[#fcfaf6] px-4 py-10 text-center text-sm text-stone-500">
+                Todavia no hay portada cargada.
+              </div>
+            )}
+          </CardShell>
+
+          <MediaField
+            title="Galeria"
+            description="Sube fotos de interiores, exteriores o renders."
+            items={propertyForm.gallery}
+            accept="image/*"
+            onRemove={(index) =>
+              setPropertyForm((current) => ({
+                ...current,
+                gallery: current.gallery.filter((_, itemIndex) => itemIndex !== index),
+              }))
+            }
+            onUpload={async (files) => {
+              const urls = await uploadMany(
+                files,
+                "properties",
+                propertyForm.slug || propertyForm.title || "propiedad"
+              );
+              if (urls.length > 0) {
+                setPropertyForm((current) => ({
+                  ...current,
+                  gallery: [...current.gallery, ...urls],
+                }));
+              }
+            }}
+          />
+
+          <CardShell className="p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-stone-900">Caracteristicas</h3>
+                <p className="text-sm leading-6 text-stone-500">
+                  Agrega atributos como garaje, jardin, suite, balcon o seguridad.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setPropertyForm((current) => ({
+                    ...current,
+                    features: [...current.features, ""],
+                  }))
+                }
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-stone-900 px-4 text-sm font-medium text-white"
+              >
+                <Plus className="h-4 w-4" />
+                Agregar
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {propertyForm.features.map((feature, index) => (
+                <div key={`${propertyForm.slug || "feature"}-${index}`} className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <InputField
+                    label={`Caracteristica ${index + 1}`}
+                    value={feature}
+                    onChange={(value) =>
+                      setPropertyForm((current) => ({
+                        ...current,
+                        features: current.features.map((item, itemIndex) =>
+                          itemIndex === index ? value : item
+                        ),
+                      }))
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPropertyForm((current) => ({
+                        ...current,
+                        features: current.features.filter((_, itemIndex) => itemIndex !== index),
+                      }))
+                    }
+                    className="mt-7 inline-flex h-12 items-center justify-center rounded-full border border-rose-200 bg-rose-50 px-4 text-sm font-medium text-rose-600"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ))}
+              {propertyForm.features.length === 0 ? (
+                <div className="rounded-[1.4rem] border border-dashed border-stone-300 bg-[#fcfaf6] px-4 py-8 text-center text-sm text-stone-500">
+                  Todavia no agregaste caracteristicas.
+                </div>
+              ) : null}
+            </div>
+          </CardShell>
+
+          <div className="flex flex-wrap justify-between gap-3 border-t border-[#e6d7c2] pt-4">
+            {propertyForm.id && (
+              <button
+                type="button"
+                onClick={async () => {
+                  await deleteProperty(propertyForm.id!);
+                  await refreshDashboard();
+                  setActiveModal(null);
+                }}
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 text-sm font-medium text-rose-600"
+              >
+                <Trash2 className="h-4 w-4" />
+                Eliminar propiedad
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={saveCurrentProperty}
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black"
+            >
+              <Save className="h-4 w-4" />
+              Guardar propiedad
+            </button>
+          </div>
+        </div>
+      </EditorModal>
+
+      <EditorModal
         open={unitModalOpen}
         title={editingUnitIndex === null ? "Nueva unidad" : "Editar unidad"}
         description="Configura cada departamento con habitaciones, banos, piso, precio y disponibilidad."
@@ -4156,21 +5400,344 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
       <EditorModal
         open={serviceModalOpen}
         title={editingServiceIndex === null ? "Nuevo servicio" : "Editar servicio"}
-        description="Define el titulo y el texto comercial de cada bloque visible en la home."
+        description="Configura la ficha completa del servicio, su formulario y los comparadores visuales."
         onClose={() => setServiceModalOpen(false)}
       >
         <div className="grid gap-4">
-          <InputField
-            label="Titulo"
-            value={serviceForm.title}
-            onChange={(value) => setServiceForm((current) => ({ ...current, title: value }))}
-          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <InputField
+              label="Titulo"
+              value={serviceForm.title}
+              onChange={(value) =>
+                setServiceForm((current) => ({
+                  ...current,
+                  title: value,
+                  slug: current.slug || !value.trim() ? current.slug : buildServiceSlug(value),
+                }))
+              }
+            />
+            <InputField
+              label="Slug"
+              value={serviceForm.slug}
+              onChange={(value) => setServiceForm((current) => ({ ...current, slug: value }))}
+              placeholder="remodelaciones-y-ampliaciones"
+              autoCapitalize="none"
+            />
+          </div>
+
+          <div className="rounded-[1.2rem] border border-stone-200 bg-[#fcfaf6] px-4 py-3 text-sm leading-6 text-stone-600">
+            Para crear rapido un servicio, con <strong>titulo</strong> y <strong>texto corto</strong> ya puedes guardarlo.
+            El sistema completa automaticamente el <strong>slug</strong>, la <strong>descripcion</strong> y el texto base del formulario si los dejas vacios.
+          </div>
+
           <TextareaField
-            label="Descripcion"
+            label="Texto corto para la card"
             value={serviceForm.text}
             onChange={(value) => setServiceForm((current) => ({ ...current, text: value }))}
-            rows={5}
+            rows={4}
           />
+
+          <TextareaField
+            label="Descripcion larga"
+            value={serviceForm.description}
+            onChange={(value) =>
+              setServiceForm((current) => ({ ...current, description: value }))
+            }
+            rows={6}
+          />
+
+          <TextareaField
+            label="Texto del formulario"
+            value={serviceForm.leadPrompt}
+            onChange={(value) =>
+              setServiceForm((current) => ({ ...current, leadPrompt: value }))
+            }
+            placeholder="Explica al cliente que detalle enviar y que hara el equipo con esta solicitud."
+            rows={4}
+          />
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <CheckboxField
+              label="Mostrar precio en la vista publica"
+              checked={serviceForm.isPriceVisible}
+              onChange={(checked) =>
+                setServiceForm((current) => ({
+                  ...current,
+                  isPriceVisible: checked,
+                  priceLabel: checked ? current.priceLabel : "",
+                }))
+              }
+              description="Activalo si quieres mostrar un precio referencial o desde."
+            />
+            <CheckboxField
+              label="Pedir ubicacion exacta en Google Maps"
+              checked={serviceForm.requiresLocation}
+              onChange={(checked) =>
+                setServiceForm((current) => ({ ...current, requiresLocation: checked }))
+              }
+              description="Si esta activo, el lead debe marcar el punto exacto en el mapa."
+            />
+          </div>
+
+          {serviceForm.isPriceVisible ? (
+            <InputField
+              label="Precio visible"
+              value={serviceForm.priceLabel ?? ""}
+              onChange={(value) =>
+                setServiceForm((current) => ({ ...current, priceLabel: value }))
+              }
+              placeholder="Desde Bs 450 por m2"
+            />
+          ) : null}
+
+          <CardShell className="p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-stone-900">Portada del servicio</h3>
+                <p className="text-sm leading-6 text-stone-500">
+                  Imagen principal para la vista interna del servicio.
+                </p>
+              </div>
+              <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black">
+                <Upload className="h-4 w-4" />
+                Subir portada
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (event) => {
+                    const [url] = await uploadMany(
+                      event.target.files,
+                      "services",
+                      serviceForm.slug || serviceForm.title || "servicio"
+                    );
+                    if (url) {
+                      setServiceForm((current) => ({ ...current, heroImage: url }));
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            {serviceForm.heroImage ? (
+              <img
+                src={serviceForm.heroImage}
+                alt={serviceForm.title || "Portada del servicio"}
+                className="mt-4 h-52 w-full rounded-[1.4rem] object-cover"
+              />
+            ) : (
+              <div className="mt-4 rounded-[1.4rem] border border-dashed border-stone-300 bg-[#fcfaf6] px-4 py-10 text-center text-sm text-stone-500">
+                Todavia no hay portada cargada.
+              </div>
+            )}
+          </CardShell>
+
+          <MediaField
+            title="Galeria del servicio"
+            description="Estas imagenes se muestran en la vista publica del servicio."
+            items={serviceForm.gallery}
+            onRemove={(galleryIndex) =>
+              setServiceForm((current) => ({
+                ...current,
+                gallery: current.gallery.filter((_, index) => index !== galleryIndex),
+              }))
+            }
+            onUpload={async (files) => {
+              const urls = await uploadMany(
+                files,
+                "services",
+                serviceForm.slug || serviceForm.title || "servicio"
+              );
+              if (urls.length > 0) {
+                setServiceForm((current) => ({
+                  ...current,
+                  gallery: [...current.gallery, ...urls],
+                }));
+              }
+            }}
+            accept="image/*"
+          />
+
+          <CardShell className="p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-base font-semibold text-stone-900">
+                  Comparadores antes y despues
+                </h3>
+                <p className="text-sm leading-6 text-stone-500">
+                  Ideal para remodelaciones, ampliaciones o transformaciones visuales.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setServiceForm((current) => ({
+                    ...current,
+                    beforeAfterItems: [
+                      ...current.beforeAfterItems,
+                      {
+                        id: `before-after-${Date.now()}`,
+                        title: "",
+                        beforeImage: "",
+                        afterImage: "",
+                      },
+                    ],
+                  }))
+                }
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black"
+              >
+                <Plus className="h-4 w-4" />
+                Nuevo comparador
+              </button>
+            </div>
+
+            {serviceForm.beforeAfterItems.length > 0 ? (
+              <div className="mt-4 grid gap-4">
+                {serviceForm.beforeAfterItems.map((item, compareIndex) => (
+                  <div
+                    key={item.id}
+                    className="rounded-[1.4rem] border border-stone-200 bg-[#fcfaf6] p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-stone-900">
+                        Comparador {compareIndex + 1}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setServiceForm((current) => ({
+                            ...current,
+                            beforeAfterItems: current.beforeAfterItems.filter(
+                              (currentItem) => currentItem.id !== item.id
+                            ),
+                          }))
+                        }
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-rose-200 bg-rose-50 text-rose-500"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid gap-4">
+                      <InputField
+                        label="Titulo del comparador"
+                        value={item.title}
+                        onChange={(value) =>
+                          setServiceForm((current) => ({
+                            ...current,
+                            beforeAfterItems: current.beforeAfterItems.map((currentItem) =>
+                              currentItem.id === item.id
+                                ? { ...currentItem, title: value }
+                                : currentItem
+                            ),
+                          }))
+                        }
+                      />
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <CardShell className="p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <h4 className="text-sm font-semibold text-stone-900">Imagen antes</h4>
+                              <p className="text-sm text-stone-500">Sube la referencia inicial.</p>
+                            </div>
+                            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black">
+                              <Upload className="h-4 w-4" />
+                              Subir
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (event) => {
+                                  const [url] = await uploadMany(
+                                    event.target.files,
+                                    "services",
+                                    serviceForm.slug || serviceForm.title || "servicio"
+                                  );
+                                  if (url) {
+                                    setServiceForm((current) => ({
+                                      ...current,
+                                      beforeAfterItems: current.beforeAfterItems.map((currentItem) =>
+                                        currentItem.id === item.id
+                                          ? { ...currentItem, beforeImage: url }
+                                          : currentItem
+                                      ),
+                                    }));
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                          {item.beforeImage ? (
+                            <img
+                              src={item.beforeImage}
+                              alt={`${item.title || "Comparador"} antes`}
+                              className="mt-4 h-40 w-full rounded-[1.2rem] object-cover"
+                            />
+                          ) : (
+                            <div className="mt-4 rounded-[1.2rem] border border-dashed border-stone-300 bg-white px-4 py-8 text-center text-sm text-stone-500">
+                              Sin imagen antes.
+                            </div>
+                          )}
+                        </CardShell>
+
+                        <CardShell className="p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <h4 className="text-sm font-semibold text-stone-900">
+                                Imagen despues
+                              </h4>
+                              <p className="text-sm text-stone-500">Sube el resultado final.</p>
+                            </div>
+                            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full bg-[#FFDC63] px-4 text-sm font-medium text-black">
+                              <Upload className="h-4 w-4" />
+                              Subir
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (event) => {
+                                  const [url] = await uploadMany(
+                                    event.target.files,
+                                    "services",
+                                    serviceForm.slug || serviceForm.title || "servicio"
+                                  );
+                                  if (url) {
+                                    setServiceForm((current) => ({
+                                      ...current,
+                                      beforeAfterItems: current.beforeAfterItems.map((currentItem) =>
+                                        currentItem.id === item.id
+                                          ? { ...currentItem, afterImage: url }
+                                          : currentItem
+                                      ),
+                                    }));
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                          {item.afterImage ? (
+                            <img
+                              src={item.afterImage}
+                              alt={`${item.title || "Comparador"} despues`}
+                              className="mt-4 h-40 w-full rounded-[1.2rem] object-cover"
+                            />
+                          ) : (
+                            <div className="mt-4 rounded-[1.2rem] border border-dashed border-stone-300 bg-white px-4 py-8 text-center text-sm text-stone-500">
+                              Sin imagen despues.
+                            </div>
+                          )}
+                        </CardShell>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 rounded-[1.4rem] border border-dashed border-stone-300 bg-[#fcfaf6] px-4 py-8 text-center text-sm text-stone-500">
+                Todavia no agregaste comparadores.
+              </div>
+            )}
+          </CardShell>
 
           <div className="flex flex-wrap justify-end gap-3 border-t border-[#e6d7c2] pt-4">
             <button
@@ -4182,17 +5749,7 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
             </button>
             <button
               type="button"
-              onClick={() => {
-                setServicesForm((current) =>
-                  editingServiceIndex === null
-                    ? [...current, serviceForm]
-                    : current.map((item, index) =>
-                        index === editingServiceIndex ? serviceForm : item
-                      )
-                );
-                setServiceModalOpen(false);
-              }}
-              disabled={!serviceForm.title.trim() || !serviceForm.text.trim()}
+              onClick={() => void saveCurrentService()}
               className="inline-flex h-12 items-center gap-2 rounded-full bg-[#FFDC63] px-5 text-sm font-medium text-black disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Save className="h-4 w-4" />
@@ -4450,6 +6007,22 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_local`}</pre>
                 { label: "Arquitecto", value: "architect" },
                 { label: "Encargado de obra", value: "site_manager" },
                 { label: "Ventas", value: "sales" },
+              ]}
+            />
+            <SelectField
+              label="Unidad de negocio"
+              value={staffForm.businessUnit}
+              onChange={(value) =>
+                setStaffForm((current) => ({
+                  ...current,
+                  businessUnit: value as CmsBusinessUnit,
+                }))
+              }
+              options={[
+                { label: "Grupo", value: "grupo" },
+                { label: "Constructora", value: "constructora" },
+                { label: "Estudio juridico", value: "juridico" },
+                { label: "Bienes raices", value: "bienes-raices" },
               ]}
             />
           </div>
